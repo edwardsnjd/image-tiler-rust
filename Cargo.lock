@@ -159,15 +159,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "foo"
-version = "0.1.0"
-dependencies = [
- "image",
- "num",
- "rand",
-]
-
-[[package]]
 name = "futures-core"
 version = "0.3.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -582,6 +573,15 @@ dependencies = [
  "flate2",
  "jpeg-decoder",
  "weezl",
+]
+
+[[package]]
+name = "tiler"
+version = "0.1.0"
+dependencies = [
+ "image",
+ "num",
+ "rand",
 ]
 
 [[package]]
