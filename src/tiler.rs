@@ -1,4 +1,4 @@
-use image::{imageops, DynamicImage, GenericImageView, ImageResult, RgbaImage, SubImage};
+use image::{imageops, DynamicImage, ImageResult, RgbaImage};
 use rand::thread_rng;
 use rand::Rng;
 use std::fs::read_dir;
@@ -66,7 +66,7 @@ fn build_thumbnails(paths: &[&Path]) -> Vec<RgbaImage> {
 fn build_thumbnail(path: &Path) -> ImageResult<RgbaImage> {
     let img = load_image(path);
 
-    let tile = extract_tile(&mut img?).to_image();
+    let tile = tiling::extract_tile(&mut img?).to_image();
 
     let thumbnail = imageops::thumbnail(&tile, THUMBNAIL_SIZE, THUMBNAIL_SIZE);
 
@@ -131,53 +131,58 @@ fn load_image(path: &Path) -> ImageResult<DynamicImage> {
     image::open(path)
 }
 
-#[derive(Eq, PartialEq, Debug)]
-struct Rectangle {
-    x: u32,
-    y: u32,
-    width: u32,
-    height: u32,
-}
+/// Extracting tiles from an image
+mod tiling {
+    use image::{imageops, DynamicImage, GenericImageView, SubImage};
 
-fn rectangle(x: u32, y: u32, width: u32, height: u32) -> Rectangle {
-    Rectangle {
-        x,
-        y,
-        width,
-        height,
-    }
-}
-
-/// Extract a square tile from the given image.
-fn extract_tile(img: &mut DynamicImage) -> SubImage<&mut DynamicImage> {
-    let (width, height) = img.dimensions();
-    let tile = choose_tile_area(width, height);
-    imageops::crop(img, tile.x, tile.y, tile.width, tile.height)
-}
-
-/// Choose the area to use as a tile from an image of the given dimensions.
-fn choose_tile_area(width: u32, height: u32) -> Rectangle {
-    let (x, y, s) = if width < height {
-        (0, (height - width) / 2, width)
-    } else {
-        ((width - height) / 2, 0, height)
-    };
-
-    rectangle(x, y, s, s)
-}
-
-#[cfg(test)]
-mod test_choose_tile_area {
-    use super::*;
-
-    #[test]
-    fn test_chooses_central_square_for_portrait_tile() {
-        assert_eq!(choose_tile_area(10, 20), rectangle(0, 5, 10, 10));
+    /// Extract a square tile from the given image.
+    pub fn extract_tile(img: &mut DynamicImage) -> SubImage<&mut DynamicImage> {
+        let (width, height) = img.dimensions();
+        let tile = choose_tile_area(width, height);
+        imageops::crop(img, tile.x, tile.y, tile.width, tile.height)
     }
 
-    #[test]
-    fn test_chooses_central_square_for_landscape_tile() {
-        assert_eq!(choose_tile_area(20, 10), rectangle(5, 0, 10, 10));
+    #[derive(Eq, PartialEq, Debug)]
+    struct Rectangle {
+        x: u32,
+        y: u32,
+        width: u32,
+        height: u32,
+    }
+
+    fn rectangle(x: u32, y: u32, width: u32, height: u32) -> Rectangle {
+        Rectangle {
+            x,
+            y,
+            width,
+            height,
+        }
+    }
+
+    /// Choose the area to use as a tile from an image of the given dimensions.
+    fn choose_tile_area(width: u32, height: u32) -> Rectangle {
+        let (x, y, s) = if width < height {
+            (0, (height - width) / 2, width)
+        } else {
+            ((width - height) / 2, 0, height)
+        };
+
+        rectangle(x, y, s, s)
+    }
+
+    #[cfg(test)]
+    mod test {
+        use super::*;
+
+        #[test]
+        fn test_chooses_central_square_for_portrait_tile() {
+            assert_eq!(choose_tile_area(10, 20), rectangle(0, 5, 10, 10));
+        }
+
+        #[test]
+        fn test_chooses_central_square_for_landscape_tile() {
+            assert_eq!(choose_tile_area(20, 10), rectangle(5, 0, 10, 10));
+        }
     }
 }
 
