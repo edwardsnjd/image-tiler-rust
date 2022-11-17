@@ -79,8 +79,8 @@ struct RandomPileStrategy<'a> {
 
 impl<'a> TileStrategy for RandomPileStrategy<'a> {
     fn choose(&self, target: &RgbaImage) -> Vec<TileLocation<RgbaImage>> {
-        let (size, _) = target.dimensions();
-        random_pile(self.tiles, size)
+        let (width, height) = target.dimensions();
+        random_pile(self.tiles, width, height)
     }
 }
 
@@ -100,7 +100,7 @@ impl Dimensioned for RgbaImage {
 type TileLocation<'a, T> = (&'a T, i64, i64);
 
 /// Place tiles in a random pile
-fn random_pile<T>(tiles: &[T], output_size: u32) -> Vec<TileLocation<T>>
+fn random_pile<T>(tiles: &[T], width: u32, height: u32) -> Vec<TileLocation<T>>
 where
     T: Dimensioned,
 {
@@ -109,8 +109,8 @@ where
     let mut rng = thread_rng();
     let mut generate_random_coords = |w, h| {
         (
-            rng.gen_range(-(w as i64)..output_size as i64),
-            rng.gen_range(-(h as i64)..output_size as i64),
+            rng.gen_range(-(w as i64)..width as i64),
+            rng.gen_range(-(h as i64)..height as i64),
         )
     };
 
@@ -203,42 +203,36 @@ mod test_random_pile {
     #[test]
     fn test_returns_zero_tiles_for_no_input() {
         let tiles: Vec<FakeImage> = vec![];
-        let actual = random_pile(&tiles, 100);
+        let actual = random_pile(&tiles, 100, 200);
         assert_eq!(actual.len(), 0);
     }
 
     #[test]
     fn test_returns_minimum_number_even_if_insufficient_tiles() {
         let tiles = vec![fake_image(10, 10)];
-        let actual = random_pile(&tiles, 100);
+        let actual = random_pile(&tiles, 100, 200);
         assert_eq!(actual.len(), MIN_TILES);
     }
 
     #[test]
     fn test_all_coords_in_bounds() {
-        let size: u32 = 100;
+        let (width, height): (u32, u32) = (100, 200);
         let tile_size: u32 = 10;
         let tiles = vec![fake_image(tile_size, tile_size)];
 
-        let actual = random_pile(&tiles, size);
+        let actual = random_pile(&tiles, width, height);
 
         let xcoords: Vec<i64> = actual.iter().map(|loc| loc.1).collect();
         let ycoords: Vec<i64> = actual.iter().map(|loc| loc.2).collect();
-        assert_eq!(
-            xcoords
-                .iter()
-                .all(|x| -1 * tile_size as i64 <= *x && *x < size as i64),
-            true,
-            "{:?}",
-            xcoords
-        );
-        assert_eq!(
-            ycoords
-                .iter()
-                .all(|y| -1 * tile_size as i64 <= *y && *y < size as i64),
-            true,
-            "{:?}",
-            ycoords
-        );
+
+        let all_x_valid = xcoords
+            .iter()
+            .all(|x| -1 * tile_size as i64 <= *x && *x < width as i64);
+        let all_y_valid = ycoords
+            .iter()
+            .all(|y| -1 * tile_size as i64 <= *y && *y < height as i64);
+
+        assert_eq!(all_x_valid, true, "{:?}", xcoords);
+        assert_eq!(all_y_valid, true, "{:?}", ycoords);
     }
 }
