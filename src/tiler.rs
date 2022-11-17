@@ -20,8 +20,9 @@ pub fn process(lib_path: &str) -> IoResult<RgbaImage> {
     let lib_paths: Vec<&Path> = lib_path_bufs.iter().map(|f| f.as_path()).collect();
 
     let thumbnails = build_thumbnails(&lib_paths);
+    let s = RandomPileStrategy { tiles: &thumbnails };
 
-    let output_image = build_output(&thumbnails, OUTPUT_SIZE);
+    let output_image = build_output(&s, OUTPUT_SIZE);
 
     Ok(output_image)
 }
@@ -35,6 +36,23 @@ fn find_lib_images(path: &str) -> IoResult<Vec<PathBuf>> {
 }
 
 // Image handling
+
+trait TileStrategy {
+    fn choose(&self, target: &RgbaImage) -> Vec<TileLocation<RgbaImage>>;
+}
+
+/// Generate an output image from the given tiles
+fn build_output(tile_strategy: &dyn TileStrategy, size: u32) -> RgbaImage {
+    let mut img = RgbaImage::new(size, size);
+
+    for (tile, x, y) in tile_strategy.choose(&img) {
+        imageops::overlay(&mut img, tile, x, y);
+    }
+
+    img
+}
+
+// Thumbnails
 
 /// Build thumbnails for the images at the given paths
 fn build_thumbnails(paths: &[&Path]) -> Vec<RgbaImage> {
@@ -55,15 +73,15 @@ fn build_thumbnail(path: &Path) -> ImageResult<RgbaImage> {
     Ok(thumbnail)
 }
 
-/// Generate an output image from the given tiles
-fn build_output(tiles: &[RgbaImage], size: u32) -> RgbaImage {
-    let mut img = RgbaImage::new(size, size);
+struct RandomPileStrategy<'a> {
+    tiles: &'a [RgbaImage],
+}
 
-    for (tile, x, y) in random_pile(tiles, size) {
-        imageops::overlay(&mut img, tile, x, y);
+impl<'a> TileStrategy for RandomPileStrategy<'a> {
+    fn choose(&self, target: &RgbaImage) -> Vec<TileLocation<RgbaImage>> {
+        let (size, _) = target.dimensions();
+        random_pile(self.tiles, size)
     }
-
-    img
 }
 
 /// Trait capturing any dimensioned structure
@@ -206,7 +224,21 @@ mod test_random_pile {
 
         let xcoords: Vec<i64> = actual.iter().map(|loc| loc.1).collect();
         let ycoords: Vec<i64> = actual.iter().map(|loc| loc.2).collect();
-        assert_eq!(xcoords.iter().all(|x| -1 * tile_size as i64 <= *x && *x < size as i64), true, "{:?}", xcoords);
-        assert_eq!(ycoords.iter().all(|y| -1 * tile_size as i64 <= *y && *y < size as i64), true, "{:?}", ycoords);
+        assert_eq!(
+            xcoords
+                .iter()
+                .all(|x| -1 * tile_size as i64 <= *x && *x < size as i64),
+            true,
+            "{:?}",
+            xcoords
+        );
+        assert_eq!(
+            ycoords
+                .iter()
+                .all(|y| -1 * tile_size as i64 <= *y && *y < size as i64),
+            true,
+            "{:?}",
+            ycoords
+        );
     }
 }
