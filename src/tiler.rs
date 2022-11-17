@@ -5,6 +5,15 @@ use std::fs::read_dir;
 use std::io::Result as IoResult;
 use std::path::{Path, PathBuf};
 
+/// Minimum number of tiles to draw (repeat tiles if fewer than this)
+const MIN_TILES: usize = 128;
+
+/// Size for generated thumbnails (square)
+const THUMBNAIL_SIZE: u32 = 256;
+
+/// Size of generated output image (square)
+const OUTPUT_SIZE: u32 = 1024;
+
 /// Build and return an image from the given tiles.
 pub fn process(lib_path: &str) -> IoResult<RgbaImage> {
     let lib_path_bufs = find_lib_images(lib_path)?;
@@ -12,8 +21,7 @@ pub fn process(lib_path: &str) -> IoResult<RgbaImage> {
 
     let thumbnails = build_thumbnails(&lib_paths);
 
-    let size = 1024;
-    let output_image = build_output(&thumbnails, size);
+    let output_image = build_output(&thumbnails, OUTPUT_SIZE);
 
     Ok(output_image)
 }
@@ -42,8 +50,7 @@ fn build_thumbnail(path: &Path) -> ImageResult<RgbaImage> {
 
     let tile = extract_tile(&mut img?).to_image();
 
-    let size = 256;
-    let thumbnail = imageops::thumbnail(&tile, size, size);
+    let thumbnail = imageops::thumbnail(&tile, THUMBNAIL_SIZE, THUMBNAIL_SIZE);
 
     Ok(thumbnail)
 }
@@ -52,32 +59,53 @@ fn build_thumbnail(path: &Path) -> ImageResult<RgbaImage> {
 fn build_output(tiles: &[RgbaImage], size: u32) -> RgbaImage {
     let mut img = RgbaImage::new(size, size);
 
-    randomly_pile_tiles_over(&mut img, tiles);
+    for (tile, x, y) in random_pile(tiles, size) {
+        imageops::overlay(&mut img, tile, x, y);
+    }
 
     img
 }
 
-/// Pile the given tiles over the target image
-fn randomly_pile_tiles_over(target: &mut RgbaImage, tiles: &[RgbaImage]) {
-    let (width, height) = target.dimensions();
+/// Trait capturing any dimensioned structure
+trait Dimensioned {
+    fn dimensions(&self) -> (u32, u32);
+}
 
-    let min_tiles = 256;
-    let tiles_to_place = min_tiles.max(tiles.len());
+/// Explicitly treat images as dimensioned
+impl Dimensioned for RgbaImage {
+    fn dimensions(&self) -> (u32, u32) {
+        self.dimensions()
+    }
+}
+
+/// Convenience type alias for a tile and where to draw it
+type TileLocation<'a, T> = (&'a T, i64, i64);
+
+/// Place tiles in a random pile
+fn random_pile<T>(tiles: &[T], output_size: u32) -> Vec<TileLocation<T>>
+where
+    T: Dimensioned,
+{
+    let tiles_to_place = MIN_TILES.max(tiles.len());
 
     let mut rng = thread_rng();
     let mut generate_random_coords = |w, h| {
         (
-            rng.gen_range(-(w as i64)..width as i64),
-            rng.gen_range(-(h as i64)..height as i64),
+            rng.gen_range(-(w as i64)..output_size as i64),
+            rng.gen_range(-(h as i64)..output_size as i64),
         )
     };
 
-    for tile in tiles.iter().cycle().take(tiles_to_place) {
-        let (w, h) = tile.dimensions();
-        let (x, y) = generate_random_coords(w, h);
-
-        imageops::overlay(target, tile, x, y);
-    }
+    tiles
+        .iter()
+        .cycle()
+        .take(tiles_to_place)
+        .map(|tile| {
+            let (w, h) = tile.dimensions();
+            let (x, y) = generate_random_coords(w, h);
+            (tile, x, y)
+        })
+        .collect()
 }
 
 /// Load an image from a file
@@ -85,15 +113,100 @@ fn load_image(path: &Path) -> ImageResult<DynamicImage> {
     image::open(path)
 }
 
+#[derive(Eq, PartialEq, Debug)]
+struct Rectangle {
+    x: u32,
+    y: u32,
+    width: u32,
+    height: u32,
+}
+
+fn rectangle(x: u32, y: u32, width: u32, height: u32) -> Rectangle {
+    Rectangle {
+        x,
+        y,
+        width,
+        height,
+    }
+}
+
 /// Extract a square tile from the given image.
 fn extract_tile(img: &mut DynamicImage) -> SubImage<&mut DynamicImage> {
     let (width, height) = img.dimensions();
+    let tile = choose_tile_area(width, height);
+    imageops::crop(img, tile.x, tile.y, tile.width, tile.height)
+}
 
+/// Choose the area to use as a tile from an image of the given dimensions.
+fn choose_tile_area(width: u32, height: u32) -> Rectangle {
     let (x, y, s) = if width < height {
         (0, (height - width) / 2, width)
     } else {
         ((width - height) / 2, 0, height)
     };
 
-    imageops::crop(img, x, y, s, s)
+    rectangle(x, y, s, s)
+}
+
+#[cfg(test)]
+mod test_choose_tile_area {
+    use super::*;
+
+    #[test]
+    fn test_chooses_central_square_for_portrait_tile() {
+        assert_eq!(choose_tile_area(10, 20), rectangle(0, 5, 10, 10));
+    }
+
+    #[test]
+    fn test_chooses_central_square_for_landscape_tile() {
+        assert_eq!(choose_tile_area(20, 10), rectangle(5, 0, 10, 10));
+    }
+}
+
+#[cfg(test)]
+mod test_random_pile {
+    use super::*;
+
+    struct FakeImage {
+        width: u32,
+        height: u32,
+    }
+
+    fn fake_image(width: u32, height: u32) -> FakeImage {
+        FakeImage { width, height }
+    }
+
+    impl Dimensioned for FakeImage {
+        fn dimensions(&self) -> (u32, u32) {
+            (self.width, self.height)
+        }
+    }
+
+    #[test]
+    fn test_returns_zero_tiles_for_no_input() {
+        let tiles: Vec<FakeImage> = vec![];
+        let actual = random_pile(&tiles, 100);
+        assert_eq!(actual.len(), 0);
+    }
+
+    #[test]
+    fn test_returns_minimum_number_even_if_insufficient_tiles() {
+        let tiles = vec![fake_image(10, 10)];
+        let actual = random_pile(&tiles, 100);
+        assert_eq!(actual.len(), MIN_TILES);
+    }
+
+    #[test]
+    fn test_all_coords_in_bounds() {
+        let size: u32 = 100;
+        let tile_size: u32 = 10;
+        let tiles = vec![fake_image(tile_size, tile_size)];
+
+        let actual = random_pile(&tiles, size);
+
+        let xcoords: Vec<i64> = actual.iter().map(|loc| loc.1).collect();
+        let ycoords: Vec<i64> = actual.iter().map(|loc| loc.2).collect();
+        assert_eq!(xcoords.iter().all(|x| -1 * tile_size as i64 <= *x && *x < size as i64), true, "{:?}", xcoords);
+        assert_eq!(ycoords.iter().all(|y| -1 * tile_size as i64 <= *y && *y < size as i64), true, "{:?}", ycoords);
+    }
 }
