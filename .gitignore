@@ -1,2 +1,9 @@
+# Build output
 /target
-out*
+
+# Testing
+/images/
+/out*
+
+# Output from cargo flamegraph
+/flamegraph.svg
