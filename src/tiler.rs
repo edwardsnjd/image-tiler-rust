@@ -18,7 +18,7 @@ pub fn process(lib_path: &str) -> IoResult<RgbaImage> {
     let lib_images = load_available_images(&lib_paths);
     let tiles = build_thumbnails(&lib_images, (THUMBNAIL_SIZE, THUMBNAIL_SIZE));
 
-    let strategy = strategy::random_pile_strategy(&tiles);
+    let strategy = strategy::random_pile_strategy(&tiles, Some(4));
 
     let output_image = build_output(&strategy, OUTPUT_SIZE);
 
@@ -96,15 +96,17 @@ mod strategy {
 
     pub struct RandomPileStrategy<'a> {
         tiles: &'a [RgbaImage],
+        min_tiles: usize,
     }
 
-    pub fn random_pile_strategy(tiles: &[RgbaImage]) -> RandomPileStrategy {
-        RandomPileStrategy { tiles }
+    pub fn random_pile_strategy(tiles: &[RgbaImage], min_tiles: Option<usize>) -> RandomPileStrategy {
+        let min_tiles = min_tiles.unwrap_or(MIN_TILES);
+        RandomPileStrategy { tiles, min_tiles }
     }
 
     impl TileStrategy for RandomPileStrategy<'_> {
         fn choose(&self, size: Dimensions) -> Vec<TileLocation<RgbaImage>> {
-            random_pile(&self.tiles, size)
+            random_pile(&self.tiles, self.min_tiles, size)
         }
     }
 
@@ -121,11 +123,11 @@ mod strategy {
     }
 
     /// Place tiles in a random pile
-    fn random_pile<T>(tiles: &[T], size: Dimensions) -> Vec<TileLocation<T>>
+    fn random_pile<T>(tiles: &[T], min_tiles: usize, size: Dimensions) -> Vec<TileLocation<T>>
     where
         T: Dimensioned,
     {
-        let tiles_to_place = MIN_TILES.max(tiles.len());
+        let tiles_to_place = min_tiles.max(tiles.len());
         let (width, height) = size;
 
         let mut rng = thread_rng();
@@ -170,15 +172,15 @@ mod strategy {
         #[test]
         fn test_returns_zero_tiles_for_no_input() {
             let tiles: Vec<FakeImage> = vec![];
-            let actual = random_pile(&tiles, (100, 200));
+            let actual = random_pile(&tiles, 2, (100, 200));
             assert_eq!(actual.len(), 0);
         }
 
         #[test]
         fn test_returns_minimum_number_even_if_insufficient_tiles() {
             let tiles = vec![fake_image(10, 10)];
-            let actual = random_pile(&tiles, (100, 200));
-            assert_eq!(actual.len(), MIN_TILES);
+            let actual = random_pile(&tiles, 7, (100, 200));
+            assert_eq!(actual.len(), 7);
         }
 
         #[test]
@@ -187,7 +189,7 @@ mod strategy {
             let tile_size: u32 = 10;
             let tiles = vec![fake_image(tile_size, tile_size)];
 
-            let actual = random_pile(&tiles, (width, height));
+            let actual = random_pile(&tiles, 7, (width, height));
 
             let xcoords: Vec<i64> = actual.iter().map(|loc| loc.1).collect();
             let ycoords: Vec<i64> = actual.iter().map(|loc| loc.2).collect();
