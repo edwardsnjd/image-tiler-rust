@@ -9,15 +9,18 @@ const THUMBNAIL_SIZE: u32 = 256;
 /// Size of generated output image (square)
 const OUTPUT_SIZE: u32 = 1024;
 
+/// Alias for width and height
+type Dimensions = (u32, u32);
+
 /// Build and return an image from the given tiles.
 pub fn process(lib_path: &str) -> IoResult<RgbaImage> {
-    let lib_path_bufs = find_lib_images(lib_path)?;
-    let lib_paths: Vec<&Path> = lib_path_bufs.iter().map(|f| f.as_path()).collect();
+    let lib_paths = find_lib_images(lib_path)?;
+    let lib_images = load_available_images(&lib_paths);
+    let tiles = build_thumbnails(&lib_images, (THUMBNAIL_SIZE, THUMBNAIL_SIZE));
 
-    let thumbnails = build_thumbnails(&lib_paths);
-    let s = strategy::random_pile_strategy(&thumbnails);
+    let strategy = strategy::random_pile_strategy(&tiles);
 
-    let output_image = build_output(&s, OUTPUT_SIZE);
+    let output_image = build_output(&strategy, OUTPUT_SIZE);
 
     Ok(output_image)
 }
@@ -43,34 +46,37 @@ fn build_output(tile_strategy: &dyn strategy::TileStrategy, size: u32) -> RgbaIm
     output
 }
 
+fn load_available_images(lib_paths: &[PathBuf]) -> Vec<RgbaImage> {
+    lib_paths
+        .iter()
+        .filter_map(|p| load_image(p).ok())
+        .collect()
+}
+
 /// Load an image from a file
-fn load_image(path: &Path) -> ImageResult<DynamicImage> {
-    image::open(path)
+fn load_image(path: &Path) -> ImageResult<RgbaImage> {
+    image::open(path).map(DynamicImage::into_rgba8)
 }
 
 // Thumbnails
 
-/// Build thumbnails for the images at the given paths
-fn build_thumbnails(paths: &[&Path]) -> Vec<RgbaImage> {
-    paths
+fn build_thumbnails(lib_images: &[RgbaImage], size: Dimensions) -> Vec<RgbaImage> {
+    lib_images
         .iter()
-        .filter_map(|path| build_thumbnail(path).ok())
+        .map(|img| build_thumbnail(img, size))
         .collect()
 }
 
-/// Try to build a thumbnail for the given path
-fn build_thumbnail(path: &Path) -> ImageResult<RgbaImage> {
-    let img = load_image(path);
-
-    let tile = tiling::extract_tile(&mut img?).to_image();
-
-    let thumbnail = imageops::thumbnail(&tile, THUMBNAIL_SIZE, THUMBNAIL_SIZE);
-
-    Ok(thumbnail)
+/// Build a thumbnail for the given image
+fn build_thumbnail(img: &RgbaImage, size: Dimensions) -> RgbaImage {
+    let (width, height) = size;
+    let tile = tiling::extract_tile(img).to_image();
+    imageops::thumbnail(&tile, width, height)
 }
 
 /// Strategies for tiling an image
 mod strategy {
+    use super::Dimensions;
     use image::RgbaImage;
     use rand::thread_rng;
     use rand::Rng;
@@ -86,9 +92,6 @@ mod strategy {
     /// Convenience type alias for a tile and where to draw it
     pub type TileLocation<'a, T> = (&'a T, i64, i64);
 
-    /// Alias for width and height
-    type Dimensions = (u32, u32);
-
     // Random pile
 
     pub struct RandomPileStrategy<'a> {
@@ -99,9 +102,9 @@ mod strategy {
         RandomPileStrategy { tiles }
     }
 
-    impl<'a> TileStrategy for RandomPileStrategy<'a> {
+    impl TileStrategy for RandomPileStrategy<'_> {
         fn choose(&self, size: Dimensions) -> Vec<TileLocation<RgbaImage>> {
-            random_pile(self.tiles, size)
+            random_pile(&self.tiles, size)
         }
     }
 
@@ -204,13 +207,16 @@ mod strategy {
 
 /// Extracting tiles from an image
 mod tiling {
-    use image::{imageops, DynamicImage, GenericImageView, SubImage};
+    use image::{imageops, GenericImageView, SubImage};
 
     /// Extract a square tile from the given image.
-    pub fn extract_tile(img: &mut DynamicImage) -> SubImage<&mut DynamicImage> {
+    pub fn extract_tile<I>(img: &I) -> SubImage<&I>
+    where
+        I: GenericImageView,
+    {
         let (width, height) = img.dimensions();
         let tile = choose_tile_area(width, height);
-        imageops::crop(img, tile.x, tile.y, tile.width, tile.height)
+        imageops::crop_imm(img, tile.x, tile.y, tile.width, tile.height)
     }
 
     #[derive(Eq, PartialEq, Debug)]
