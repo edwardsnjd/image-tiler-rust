@@ -262,3 +262,102 @@ mod tiling {
         }
     }
 }
+
+/// Analysis of images
+mod analysis {
+    use core::fmt::Debug;
+
+    use image::{imageops, Pixel, RgbaImage};
+
+    #[allow(dead_code)]
+    const SAMPLE_SIZE: u8 = 8;
+
+    #[allow(dead_code)]
+    pub fn analyse(img: &RgbaImage, options: &AnalysisOptions) -> ImageInfo {
+        let size = options.sample_size as u32;
+        let (width, height) = img.dimensions();
+
+        let foo = imageops::thumbnail(img, size, size);
+
+        let colors = foo
+            .pixels()
+            .map(|p| {
+                let vals = p.channels();
+                ColorInfo {
+                    red: vals[0].to_owned(),
+                    blue: vals[1].to_owned(),
+                    green: vals[2].to_owned(),
+                }
+            })
+            .collect();
+
+        ImageInfo {
+            width,
+            height,
+            colors,
+        }
+    }
+
+    pub struct AnalysisOptions {
+        sample_size: u8,
+    }
+
+    #[allow(dead_code)]
+    pub fn options(sample_size: Option<u8>) -> AnalysisOptions {
+        AnalysisOptions {
+            sample_size: sample_size.unwrap_or(SAMPLE_SIZE),
+        }
+    }
+
+    /// Data describing the image, suitable for comparison between images.
+    #[derive(Debug, PartialEq, Eq)]
+    pub struct ImageInfo {
+        width: u32,
+        height: u32,
+        colors: Vec<ColorInfo>,
+    }
+
+    /// Data describing the color of a pixel.
+    #[derive(PartialEq, Eq)]
+    pub struct ColorInfo {
+        red: u8,
+        blue: u8,
+        green: u8,
+    }
+
+    impl Debug for ColorInfo {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "({},{},{})", self.red, self.blue, self.green)
+        }
+    }
+
+    #[cfg(test)]
+    mod test {
+        use super::*;
+
+        const BLACK: ColorInfo = ColorInfo {
+            red: 0,
+            blue: 0,
+            green: 0,
+        };
+
+        #[test]
+        fn test_foo() {
+            let size = 100;
+            let img = RgbaImage::new(size, size);
+
+            let opts = options(Some(1));
+
+            let result = analyse(&img, &opts);
+
+            assert_eq!(
+                result,
+                ImageInfo {
+                    width: size,
+                    height: size,
+                    colors: vec![BLACK],
+                }
+            );
+        }
+    }
+}
