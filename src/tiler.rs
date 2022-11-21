@@ -16,6 +16,7 @@ type Dimensions = (u32, u32);
 pub fn process(lib_path: &str) -> IoResult<RgbaImage> {
     let lib_paths = find_lib_images(lib_path)?;
     let lib_images = load_available_images(&lib_paths);
+
     let tiles = build_thumbnails(&lib_images, (THUMBNAIL_SIZE, THUMBNAIL_SIZE));
 
     let strategy = strategy::random_pile_strategy(&tiles, Some(4));
@@ -99,14 +100,17 @@ mod strategy {
         min_tiles: usize,
     }
 
-    pub fn random_pile_strategy(tiles: &[RgbaImage], min_tiles: Option<usize>) -> RandomPileStrategy {
+    pub fn random_pile_strategy(
+        tiles: &[RgbaImage],
+        min_tiles: Option<usize>,
+    ) -> RandomPileStrategy {
         let min_tiles = min_tiles.unwrap_or(MIN_TILES);
         RandomPileStrategy { tiles, min_tiles }
     }
 
     impl TileStrategy for RandomPileStrategy<'_> {
         fn choose(&self, size: Dimensions) -> Vec<TileLocation<RgbaImage>> {
-            random_pile(&self.tiles, self.min_tiles, size)
+            random_pile(self.tiles, self.min_tiles, size)
         }
     }
 
@@ -196,10 +200,10 @@ mod strategy {
 
             let all_x_valid = xcoords
                 .iter()
-                .all(|x| -1 * tile_size as i64 <= *x && *x < width as i64);
+                .all(|x| -(tile_size as i64) <= *x && *x < width as i64);
             let all_y_valid = ycoords
                 .iter()
-                .all(|y| -1 * tile_size as i64 <= *y && *y < height as i64);
+                .all(|y| -(tile_size as i64) <= *y && *y < height as i64);
 
             assert_eq!(all_x_valid, true, "{:?}", xcoords);
             assert_eq!(all_y_valid, true, "{:?}", ycoords);
@@ -333,21 +337,49 @@ mod analysis {
         }
     }
 
+    impl ColorInfo {
+        #[allow(dead_code)]
+        fn new(red: u8, green: u8, blue: u8) -> ColorInfo {
+            Self { red, green, blue }
+        }
+
+        #[allow(dead_code)]
+        fn diff(&self, other: &ColorInfo) -> i32 {
+            num::abs(self.red as i32 - other.red as i32)
+                + num::abs(self.green as i32 - other.green as i32)
+                + num::abs(self.blue as i32 - other.blue as i32)
+        }
+    }
+
     #[cfg(test)]
     mod test {
         use super::*;
 
-        const BLACK: ColorInfo = ColorInfo {
-            red: 0,
-            blue: 0,
-            green: 0,
-        };
+        struct TestContext {
+            black: ColorInfo,
+            red: ColorInfo,
+            green: ColorInfo,
+            blue: ColorInfo,
+            grey: ColorInfo,
+            white: ColorInfo,
+        }
+
+        fn setup() -> TestContext {
+            TestContext {
+                black: ColorInfo::new(0, 0, 0),
+                red: ColorInfo::new(255, 0, 0),
+                blue: ColorInfo::new(0, 255, 0),
+                green: ColorInfo::new(0, 0, 255),
+                grey: ColorInfo::new(127, 127, 127),
+                white: ColorInfo::new(255, 255, 255),
+            }
+        }
 
         #[test]
-        fn test_foo() {
+        fn test_returns_expected_analysis() {
+            let ctx = setup();
             let size = 100;
             let img = RgbaImage::new(size, size);
-
             let opts = options(Some(1));
 
             let result = analyse(&img, &opts);
@@ -357,9 +389,26 @@ mod analysis {
                 ImageInfo {
                     width: size,
                     height: size,
-                    colors: vec![BLACK],
+                    colors: vec![ctx.black],
                 }
             );
+        }
+
+        #[test]
+        fn test_returns_absolute_color_difference() {
+            let ctx = setup();
+            assert_eq!(ctx.black.diff(&ctx.black), 0);
+            assert_eq!(ctx.red.diff(&ctx.red), 0);
+            assert_eq!(ctx.green.diff(&ctx.green), 0);
+            assert_eq!(ctx.blue.diff(&ctx.blue), 0);
+            assert_eq!(ctx.grey.diff(&ctx.grey), 0);
+            assert_eq!(ctx.white.diff(&ctx.white), 0);
+
+            assert_eq!(ctx.black.diff(&ctx.red), 255 + 0 + 0);
+            assert_eq!(ctx.black.diff(&ctx.green), 0 + 255 + 0);
+            assert_eq!(ctx.black.diff(&ctx.blue), 0 + 0 + 255);
+            assert_eq!(ctx.black.diff(&ctx.grey), 127 + 127 + 127);
+            assert_eq!(ctx.black.diff(&ctx.white), 255 + 255 + 255);
         }
     }
 }
