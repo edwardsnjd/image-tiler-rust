@@ -1,4 +1,5 @@
 mod tiler;
+mod analysis;
 
 use image::ImageError;
 use image::ImageFormat::Jpeg;
