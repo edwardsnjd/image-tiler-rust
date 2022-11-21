@@ -5,7 +5,6 @@ use image::{imageops, Pixel, RgbaImage};
 #[allow(dead_code)]
 const SAMPLE_SIZE: u8 = 8;
 
-#[allow(dead_code)]
 pub fn analyse(img: &RgbaImage, options: &AnalysisOptions) -> ImageInfo {
     let size = options.sample_size as u32;
     let (width, height) = img.dimensions();
@@ -51,6 +50,19 @@ pub struct ImageInfo {
     width: u32,
     height: u32,
     colors: Vec<ColorInfo>,
+}
+
+impl ImageInfo {
+    #[allow(dead_code)]
+    fn diff(&self, other: &ImageInfo) -> Vec<i32> {
+        let (this, that) = (&self.colors, &other.colors);
+
+        assert!(this.len() == that.len());
+
+        let pairs: Vec<(&ColorInfo, &ColorInfo)> = this.iter().zip(that.iter()).collect();
+
+        pairs.iter().map(|(a, b)| a.diff(&b)).collect()
+    }
 }
 
 /// Data describing the color of a pixel.
@@ -139,5 +151,37 @@ mod test {
         assert_eq!(ctx.black.diff(&ctx.blue), 0 + 0 + 255);
         assert_eq!(ctx.black.diff(&ctx.grey), 127 + 127 + 127);
         assert_eq!(ctx.black.diff(&ctx.white), 255 + 255 + 255);
+    }
+
+    #[test]
+    fn test_returns_zero_diffs_for_identical_images() {
+        let size = 100;
+        let img1 = RgbaImage::new(size, size);
+        let img2 = RgbaImage::new(size, size);
+
+        let opts = AnalysisOptions::new(Some(2));
+
+        let result1 = analyse(&img1, &opts);
+        let result2 = analyse(&img2, &opts);
+
+        let diffs = result1.diff(&result2);
+
+        assert_eq!(diffs, vec![0, 0, 0, 0]);
+    }
+
+    #[test]
+    fn test_returns_diff_of_each_sample() {
+        let size = 100;
+        let img1 = RgbaImage::new(size, size);
+        let img2 = RgbaImage::from_pixel(size, size, image::Rgba([0, 0, 255, 0]));
+
+        let opts = AnalysisOptions::new(Some(2));
+
+        let result1 = analyse(&img1, &opts);
+        let result2 = analyse(&img2, &opts);
+
+        let diffs = result1.diff(&result2);
+
+        assert_eq!(diffs, vec![255, 255, 255, 255]);
     }
 }
