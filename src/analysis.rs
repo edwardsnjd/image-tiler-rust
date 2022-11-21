@@ -36,10 +36,12 @@ pub struct AnalysisOptions {
     pub sample_size: u8,
 }
 
-#[allow(dead_code)]
-pub fn options(sample_size: Option<u8>) -> AnalysisOptions {
-    AnalysisOptions {
-        sample_size: sample_size.unwrap_or(SAMPLE_SIZE),
+impl AnalysisOptions {
+    #[allow(dead_code)]
+    pub fn new(sample_size: Option<u8>) -> AnalysisOptions {
+        Self {
+            sample_size: sample_size.unwrap_or(SAMPLE_SIZE),
+        }
     }
 }
 
@@ -104,11 +106,11 @@ mod test {
     }
 
     #[test]
-    fn test_returns_expected_analysis() {
+    fn test_returns_expected_image_analysis() {
         let ctx = setup();
         let size = 100;
         let img = RgbaImage::new(size, size);
-        let opts = options(Some(1));
+        let opts = AnalysisOptions::new(Some(1));
 
         let result = analyse(&img, &opts);
 
@@ -123,7 +125,7 @@ mod test {
     }
 
     #[test]
-    fn test_returns_absolute_color_difference() {
+    fn test_returns_absolute_image_color_difference() {
         let ctx = setup();
         assert_eq!(ctx.black.diff(&ctx.black), 0);
         assert_eq!(ctx.red.diff(&ctx.red), 0);
