@@ -10,9 +10,10 @@ pub fn analyse(img: &RgbaImage, options: &AnalysisOptions) -> ImageInfo {
     let size = options.sample_size as u32;
     let (width, height) = img.dimensions();
 
-    let foo = imageops::thumbnail(img, size, size);
+    // Resize image as a simple way to get pixel data
+    let tiny_version = imageops::thumbnail(img, size, size);
 
-    let colors = foo
+    let colors = tiny_version
         .pixels()
         .map(|p| {
             let vals = p.channels();
