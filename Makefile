@@ -16,6 +16,7 @@ test:
 
 clean:
 	cargo clean
+	rm -f flamegraph.svg
 .PHONY: clean
 
 format:
@@ -31,6 +32,12 @@ build:
 	cargo build --release
 .PHONY: build
 
+run:
+	time target/release/tiler images > output.jpg
+	chafa output.jpg
+.PHONY: run
+
 performance:
 	cargo flamegraph --root -- images > output.jpg
+	chafa flamegraph.svg
 .PHONY: performance
