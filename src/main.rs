@@ -1,5 +1,8 @@
 mod tiler;
 mod analysis;
+mod core;
+mod tiling;
+mod pile;
 
 use image::ImageError;
 use image::ImageFormat::Jpeg;

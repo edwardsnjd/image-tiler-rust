@@ -5,6 +5,7 @@ use image::{imageops, Pixel, RgbaImage};
 #[allow(dead_code)]
 const SAMPLE_SIZE: u8 = 8;
 
+#[allow(dead_code)]
 pub fn analyse(img: &RgbaImage, options: &AnalysisOptions) -> ImageInfo {
     let size = options.sample_size as u32;
     let (width, height) = img.dimensions();
@@ -75,7 +76,7 @@ pub struct ColorInfo {
 
 impl Debug for ColorInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "({},{},{})", self.red, self.blue, self.green)
+        write!(f, "ColorInfo({},{},{})", self.red, self.blue, self.green)
     }
 }
 
