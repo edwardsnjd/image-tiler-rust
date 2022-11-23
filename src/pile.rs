@@ -25,8 +25,8 @@ pub fn random_pile_strategy(
 }
 
 impl TileStrategy for RandomPileStrategy<'_> {
-    fn choose(&self, size: Dimensions) -> Vec<TileLocation<RgbaImage>> {
-        random_pile(self.tiles, self.min_tiles, size)
+    fn choose(&self, target: &RgbaImage) -> Vec<TileLocation<RgbaImage>> {
+        random_pile(self.tiles, self.min_tiles, target.dimensions())
     }
 }
 
