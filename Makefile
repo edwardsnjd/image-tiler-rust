@@ -23,21 +23,31 @@ format:
 	cargo fmt
 .PHONY: format
 
-dev:
-	cargo run -- images > output.jpg
-	chafa output.jpg
-.PHONY: dev
+lint:
+	cargo fmt
+	cargo clippy
+.PHONY: lint
 
 build:
 	cargo build --release
 .PHONY: build
 
-run:
-	time target/release/tiler images > output.jpg
-	chafa output.jpg
-.PHONY: run
+tile:
+	time target/release/tile images/2.jpg > tile2.jpg
+	chafa tile2.jpg
+.PHONY: tile
+
+pile:
+	time target/release/pile tile_images > pile.jpg
+	chafa pile.jpg
+.PHONY: pile
+
+mosaic:
+	time target/release/mosaic images/3.jpg tile_images > mosaic.jpg
+	chafa mosaic.jpg
+.PHONY: mosaic
 
 performance:
-	cargo flamegraph --root -- images > output.jpg
+	cargo flamegraph --root --bin mosaic -- images/3.jpg tile_images > mosaic.jpg
 	chafa flamegraph.svg
 .PHONY: performance

@@ -6,9 +6,8 @@ pub fn choose_tile_area(width: u32, height: u32) -> Rectangle {
         ((width - height) / 2, 0, height)
     };
 
-    rectangle(x, y, s, s)
+    Rectangle::new(x, y, s, s)
 }
-
 
 #[derive(Eq, PartialEq, Debug)]
 pub struct Rectangle {
@@ -18,12 +17,14 @@ pub struct Rectangle {
     pub height: u32,
 }
 
-fn rectangle(x: u32, y: u32, width: u32, height: u32) -> Rectangle {
-    Rectangle {
-        x,
-        y,
-        width,
-        height,
+impl Rectangle {
+    pub fn new(x: u32, y: u32, width: u32, height: u32) -> Self {
+        Self {
+            x,
+            y,
+            width,
+            height,
+        }
     }
 }
 
@@ -33,11 +34,11 @@ mod test {
 
     #[test]
     fn test_chooses_central_square_for_portrait_tile() {
-        assert_eq!(choose_tile_area(10, 20), rectangle(0, 5, 10, 10));
+        assert_eq!(choose_tile_area(10, 20), Rectangle::new(0, 5, 10, 10));
     }
 
     #[test]
     fn test_chooses_central_square_for_landscape_tile() {
-        assert_eq!(choose_tile_area(20, 10), rectangle(5, 0, 10, 10));
+        assert_eq!(choose_tile_area(20, 10), Rectangle::new(5, 0, 10, 10));
     }
 }

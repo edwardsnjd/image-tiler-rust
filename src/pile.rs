@@ -4,7 +4,6 @@ use rand::Rng;
 
 use crate::core::Dimensions;
 use crate::core::TileLocation;
-use crate::core::TileStrategy;
 
 /// Minimum number of tiles to draw (repeat tiles if fewer than this)
 const MIN_TILES: usize = 128;
@@ -16,17 +15,14 @@ pub struct RandomPileStrategy<'a> {
     min_tiles: usize,
 }
 
-pub fn random_pile_strategy(
-    tiles: &[RgbaImage],
-    min_tiles: Option<usize>,
-) -> RandomPileStrategy {
-    let min_tiles = min_tiles.unwrap_or(MIN_TILES);
-    RandomPileStrategy { tiles, min_tiles }
-}
+impl RandomPileStrategy<'_> {
+    pub fn new(tiles: &[RgbaImage], min_tiles: Option<usize>) -> RandomPileStrategy {
+        let min_tiles = min_tiles.unwrap_or(MIN_TILES);
+        RandomPileStrategy { tiles, min_tiles }
+    }
 
-impl TileStrategy for RandomPileStrategy<'_> {
-    fn choose(&self, target: &RgbaImage) -> Vec<TileLocation<RgbaImage>> {
-        random_pile(self.tiles, self.min_tiles, target.dimensions())
+    pub fn choose(&self, size: Dimensions) -> Vec<TileLocation<RgbaImage>> {
+        random_pile(self.tiles, self.min_tiles, size)
     }
 }
 
@@ -64,10 +60,9 @@ where
         .take(tiles_to_place)
         .map(|tile| {
             let size = tile.dimensions();
-            let (x, y) = generate_random_coords(size);
-            (tile, x, y)
+            (tile, generate_random_coords(size), size)
         })
-    .collect()
+        .collect()
 }
 
 #[cfg(test)]
@@ -111,8 +106,8 @@ mod test {
 
         let actual = random_pile(&tiles, 7, (width, height));
 
-        let xcoords: Vec<i64> = actual.iter().map(|loc| loc.1).collect();
-        let ycoords: Vec<i64> = actual.iter().map(|loc| loc.2).collect();
+        let xcoords: Vec<i64> = actual.iter().map(|loc| loc.1 .0).collect();
+        let ycoords: Vec<i64> = actual.iter().map(|loc| loc.1 .1).collect();
 
         let all_x_valid = xcoords
             .iter()
@@ -121,7 +116,7 @@ mod test {
             .iter()
             .all(|y| -(tile_size as i64) <= *y && *y < height as i64);
 
-        assert_eq!(all_x_valid, true, "{:?}", xcoords);
-        assert_eq!(all_y_valid, true, "{:?}", ycoords);
+        assert!(all_x_valid, "{:?}", xcoords);
+        assert!(all_y_valid, "{:?}", ycoords);
     }
 }

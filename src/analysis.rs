@@ -55,14 +55,14 @@ pub struct ImageInfo {
 
 impl ImageInfo {
     #[allow(dead_code)]
-    fn diff(&self, other: &ImageInfo) -> Vec<i32> {
+    pub fn diff(&self, other: &ImageInfo) -> Vec<i32> {
         let (this, that) = (&self.colors, &other.colors);
 
         assert!(this.len() == that.len());
 
         let pairs: Vec<(&ColorInfo, &ColorInfo)> = this.iter().zip(that.iter()).collect();
 
-        pairs.iter().map(|(a, b)| a.diff(&b)).collect()
+        pairs.iter().map(|(a, b)| a.diff(b)).collect()
     }
 }
 
