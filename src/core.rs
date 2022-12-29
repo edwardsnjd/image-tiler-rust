@@ -25,18 +25,28 @@ impl<T> TileLocationExtensions<T> for TileLocation<'_, T> {
 }
 
 /// Extension trait for homogenous tuple pairs (since it's a built in type)
-trait TupleExtensions<T> {
+pub trait TupleExtensions<T> {
     /// Map the values inside the tuple
     fn map<F, U>(&self, f: F) -> (U, U)
     where
         F: Fn(&T) -> U;
+
+    /// Scale the numeric values inside the tuple
+    fn scale(&self, ratio: T) -> (T, T);
 }
 
-impl<T> TupleExtensions<T> for (T, T) {
+impl<T> TupleExtensions<T> for (T, T)
+where
+    T: std::ops::Mul<Output = T> + Copy
+{
     fn map<F, U>(&self, f: F) -> (U, U)
     where
-        F: Fn(&T) -> U,
+        F: Fn(&T) -> U
     {
         (f(&self.0), f(&self.1))
+    }
+
+    fn scale(&self, ratio: T) -> (T, T) {
+        self.map(|v| *v * ratio)
     }
 }

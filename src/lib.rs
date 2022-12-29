@@ -13,7 +13,7 @@ use std::io::Result as IoResult;
 use std::path::{Path, PathBuf};
 
 use crate::analysis::AnalysisOptions;
-use crate::core::{Dimensions, TileLocation, TileLocationExtensions};
+use crate::core::{Dimensions, TileLocation, TileLocationExtensions, TupleExtensions};
 use crate::matching::MatchingTileStrategy;
 use crate::pile::RandomPileStrategy;
 use crate::tiling::choose_tile_area;
@@ -45,17 +45,15 @@ pub fn mosaic(target_path: &str, lib_path: &str) -> IoResult<RgbaImage> {
     let target = load_image(Path::new(target_path)).unwrap();
     let lib_paths = find_lib_images(lib_path)?;
 
-    let ratio = tile_size / cell_size;
-    let (width, height) = target.dimensions();
-    let output_size = (width * ratio, height * ratio);
-
     let analysis_options = AnalysisOptions::new(Some(analysis_size));
     let lib_info = analyse_available_images(&lib_paths, &analysis_options);
 
     let strategy = MatchingTileStrategy::new(&lib_info, &analysis_options);
     let tiles = strategy.choose(&target, (cell_size, cell_size));
 
+    let ratio = tile_size / cell_size;
     let tiles = tiles.iter().map(|t| t.scale(ratio)).collect();
+    let output_size = target.dimensions().scale(ratio);
 
     let output_image = build_image2(output_size, tiles);
 
