@@ -13,7 +13,7 @@ use std::io::Result as IoResult;
 use std::path::{Path, PathBuf};
 
 use crate::analysis::AnalysisOptions;
-use crate::core::{Dimensions, TileLocation};
+use crate::core::{Dimensions, TileLocation, TileLocationExtensions};
 use crate::matching::MatchingTileStrategy;
 use crate::pile::RandomPileStrategy;
 use crate::tiling::choose_tile_area;
@@ -23,14 +23,12 @@ use crate::tiling::choose_tile_area;
 /// Build and return a pile image from the given tiles.
 pub fn pile(lib_path: &str) -> IoResult<RgbaImage> {
     let minimum_number_of_tiles = 64;
-    let tile_size = (256, 256);
     let output_size = (4096, 4096);
 
     let lib_paths = find_lib_images(lib_path)?;
     let lib_images = load_available_images(&lib_paths);
-    let thumbnails = build_thumbnails(&lib_images, tile_size);
 
-    let strategy = RandomPileStrategy::new(&thumbnails, Some(minimum_number_of_tiles));
+    let strategy = RandomPileStrategy::new(&lib_images, Some(minimum_number_of_tiles));
     let tiles = strategy.choose(output_size);
 
     let output_image = build_image(output_size, tiles);
@@ -47,17 +45,9 @@ pub fn mosaic(target_path: &str, lib_path: &str) -> IoResult<RgbaImage> {
     let target = load_image(Path::new(target_path)).unwrap();
     let lib_paths = find_lib_images(lib_path)?;
 
-    let (width, height) = target.dimensions();
     let ratio = tile_size / cell_size;
-    let ratio_i64 = ratio as i64;
+    let (width, height) = target.dimensions();
     let output_size = (width * ratio, height * ratio);
-
-    eprintln!("a: {}", analysis_size);
-    eprintln!("c: {}", cell_size);
-    eprintln!("t: {}", tile_size);
-    eprintln!("r: x{}", ratio);
-    eprintln!("s: ({},{})", width, height);
-    eprintln!("o: ({},{})", output_size.0, output_size.1);
 
     let analysis_options = AnalysisOptions::new(Some(analysis_size));
     let lib_info = analyse_available_images(&lib_paths, &analysis_options);
@@ -65,10 +55,7 @@ pub fn mosaic(target_path: &str, lib_path: &str) -> IoResult<RgbaImage> {
     let strategy = MatchingTileStrategy::new(&lib_info, &analysis_options);
     let tiles = strategy.choose(&target, (cell_size, cell_size));
 
-    let tiles = tiles
-        .iter()
-        .map(|(p, (x, y), (w, h))| (*p, (x * ratio_i64, y * ratio_i64), (w * ratio, h * ratio)))
-        .collect();
+    let tiles = tiles.iter().map(|t| t.scale(ratio)).collect();
 
     let output_image = build_image2(output_size, tiles);
 
@@ -124,15 +111,11 @@ fn load_image(path: &Path) -> ImageResult<RgbaImage> {
 
 // Thumbnails
 
-fn build_thumbnails(lib_images: &[RgbaImage], size: Dimensions) -> Vec<RgbaImage> {
-    lib_images.iter().map(|img| build_tile(img, size)).collect()
-}
-
 /// Build a tile for the given image
 fn build_tile(img: &RgbaImage, size: Dimensions) -> RgbaImage {
     let (width, height) = size;
     let tile = extract_tile(img).to_image();
-    imageops::thumbnail(&tile, width, height)
+    at_size(tile, width, height)
 }
 
 /// Extract a square tile from the given image.
@@ -154,12 +137,23 @@ fn build_image((width, height): Dimensions, tiles: Vec<TileLocation<RgbaImage>>)
     output
 }
 
+/// Build an image from tile paths
 fn build_image2((width, height): Dimensions, tiles: Vec<TileLocation<PathBuf>>) -> RgbaImage {
     let mut output = RgbaImage::new(width, height);
     for (tile, (x, y), (w, h)) in tiles {
         let img = load_image(tile).unwrap();
-        let thumb = imageops::thumbnail(&img, w, h);
+        let thumb = at_size(img, w, h);
         imageops::overlay(&mut output, &thumb, x, y);
     }
     output
+}
+
+/// Resize an image if necessary
+fn at_size(img: RgbaImage, w: u32, h: u32) -> RgbaImage {
+    let size = img.dimensions();
+    if size == (w, h) {
+        img
+    } else {
+        imageops::thumbnail(&img, w, h)
+    }
 }
