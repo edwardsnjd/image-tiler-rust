@@ -62,7 +62,7 @@ impl ImageInfo {
 
         let pairs: Vec<(&ColorInfo, &ColorInfo)> = this.iter().zip(that.iter()).collect();
 
-        pairs.iter().map(|(a, b)| a.diff(b)).collect()
+        pairs.iter().map(|(a, b)| a.abs_diff(b)).collect()
     }
 }
 
@@ -87,7 +87,7 @@ impl ColorInfo {
     }
 
     #[allow(dead_code)]
-    fn diff(&self, other: &ColorInfo) -> i32 {
+    fn abs_diff(&self, other: &ColorInfo) -> i32 {
         num::abs(self.red as i32 - other.red as i32)
             + num::abs(self.green as i32 - other.green as i32)
             + num::abs(self.blue as i32 - other.blue as i32)
@@ -140,18 +140,18 @@ mod test {
     #[test]
     fn test_returns_absolute_image_color_difference() {
         let ctx = setup();
-        assert_eq!(ctx.black.diff(&ctx.black), 0);
-        assert_eq!(ctx.red.diff(&ctx.red), 0);
-        assert_eq!(ctx.green.diff(&ctx.green), 0);
-        assert_eq!(ctx.blue.diff(&ctx.blue), 0);
-        assert_eq!(ctx.grey.diff(&ctx.grey), 0);
-        assert_eq!(ctx.white.diff(&ctx.white), 0);
+        assert_eq!(ctx.black.abs_diff(&ctx.black), 0);
+        assert_eq!(ctx.red.abs_diff(&ctx.red), 0);
+        assert_eq!(ctx.green.abs_diff(&ctx.green), 0);
+        assert_eq!(ctx.blue.abs_diff(&ctx.blue), 0);
+        assert_eq!(ctx.grey.abs_diff(&ctx.grey), 0);
+        assert_eq!(ctx.white.abs_diff(&ctx.white), 0);
 
-        assert_eq!(ctx.black.diff(&ctx.red), 255 + 0 + 0);
-        assert_eq!(ctx.black.diff(&ctx.green), 0 + 255 + 0);
-        assert_eq!(ctx.black.diff(&ctx.blue), 0 + 0 + 255);
-        assert_eq!(ctx.black.diff(&ctx.grey), 127 + 127 + 127);
-        assert_eq!(ctx.black.diff(&ctx.white), 255 + 255 + 255);
+        assert_eq!(ctx.black.abs_diff(&ctx.red), 255 + 0 + 0);
+        assert_eq!(ctx.black.abs_diff(&ctx.green), 0 + 255 + 0);
+        assert_eq!(ctx.black.abs_diff(&ctx.blue), 0 + 0 + 255);
+        assert_eq!(ctx.black.abs_diff(&ctx.grey), 127 + 127 + 127);
+        assert_eq!(ctx.black.abs_diff(&ctx.white), 255 + 255 + 255);
     }
 
     #[test]
