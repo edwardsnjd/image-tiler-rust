@@ -38,16 +38,16 @@ tile:
 .PHONY: tile
 
 pile:
-	time target/release/pile tile_images/ > pile.jpg
+	time target/release/pile tiles_lib// > pile.jpg
 	chafa pile.jpg
 .PHONY: pile
 
 mosaic:
-	time target/release/mosaic images/242.jpg tile_images/ > mosaic.jpg
+	time target/release/mosaic images/242.jpg tiles_lib/ > mosaic.jpg
 	chafa mosaic.jpg
 .PHONY: mosaic
 
 performance:
-	cargo flamegraph --root --bin mosaic -- images/3.jpg tile_images/ > mosaic.jpg
+	cargo flamegraph --root --bin mosaic -- images/3.jpg tiles_lib/ > mosaic.jpg
 	chafa flamegraph.svg
 .PHONY: performance
