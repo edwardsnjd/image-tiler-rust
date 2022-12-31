@@ -22,6 +22,8 @@ impl<T> MatchingTileStrategy<'_, T> {
     }
 
     pub fn choose(&self, target: &RgbaImage, cell_size: Dimensions) -> Vec<TileLocation<T>> {
+        // This implementation assumes we can select the correct tile for
+        // each cell independently.
         grid(target, cell_size)
             .iter()
             .map(|t| self.select_tile(target, t))
