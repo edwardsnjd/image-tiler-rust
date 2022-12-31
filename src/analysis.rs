@@ -2,10 +2,8 @@ use core::fmt::Debug;
 
 use image::{imageops, Pixel, RgbaImage};
 
-#[allow(dead_code)]
 const SAMPLE_SIZE: u8 = 8;
 
-#[allow(dead_code)]
 pub fn analyse(img: &RgbaImage, options: &AnalysisOptions) -> ImageInfo {
     let size = options.sample_size as u32;
     let (width, height) = img.dimensions();
@@ -37,7 +35,6 @@ pub struct AnalysisOptions {
 }
 
 impl AnalysisOptions {
-    #[allow(dead_code)]
     pub fn new(sample_size: Option<u8>) -> AnalysisOptions {
         Self {
             sample_size: sample_size.unwrap_or(SAMPLE_SIZE),
@@ -54,7 +51,6 @@ pub struct ImageInfo {
 }
 
 impl ImageInfo {
-    #[allow(dead_code)]
     pub fn diff(&self, other: &ImageInfo) -> Vec<i32> {
         let (this, that) = (&self.colors, &other.colors);
 
