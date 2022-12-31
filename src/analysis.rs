@@ -17,11 +17,11 @@ pub fn analyse(img: &RgbaImage, options: &AnalysisOptions) -> ImageInfo {
         .pixels()
         .map(|p| {
             let vals = p.channels();
-            ColorInfo {
-                red: vals[0].to_owned(),
-                blue: vals[1].to_owned(),
-                green: vals[2].to_owned(),
-            }
+            ColorInfo::new(
+                vals[0].to_owned(),
+                vals[1].to_owned(),
+                vals[2].to_owned(),
+            )
         })
         .collect();
 
@@ -81,12 +81,10 @@ impl Debug for ColorInfo {
 }
 
 impl ColorInfo {
-    #[allow(dead_code)]
     fn new(red: u8, green: u8, blue: u8) -> ColorInfo {
         Self { red, green, blue }
     }
 
-    #[allow(dead_code)]
     fn abs_diff(&self, other: &ColorInfo) -> i32 {
         num::abs(self.red as i32 - other.red as i32)
             + num::abs(self.green as i32 - other.green as i32)
