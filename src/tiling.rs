@@ -9,7 +9,7 @@ pub fn choose_tile_area(width: u32, height: u32) -> Rectangle {
     Rectangle::new(x, y, s, s)
 }
 
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug, Hash)]
 pub struct Rectangle {
     pub x: u32,
     pub y: u32,
