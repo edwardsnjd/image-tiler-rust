@@ -164,11 +164,17 @@ mod test {
         assert_eq!(ctx.grey.sqr_diff(&ctx.grey), 0);
         assert_eq!(ctx.white.sqr_diff(&ctx.white), 0);
 
-        assert_eq!(ctx.black.sqr_diff(&ctx.red), 255*255 + 0 + 0);
-        assert_eq!(ctx.black.sqr_diff(&ctx.green), 0 + 255*255 + 0);
-        assert_eq!(ctx.black.sqr_diff(&ctx.blue), 0 + 0 + 255*255);
-        assert_eq!(ctx.black.sqr_diff(&ctx.grey), 127*127 + 127*127 + 127*127);
-        assert_eq!(ctx.black.sqr_diff(&ctx.white), 255*255 + 255*255 + 255*255);
+        assert_eq!(ctx.black.sqr_diff(&ctx.red), 255 * 255 + 0 + 0);
+        assert_eq!(ctx.black.sqr_diff(&ctx.green), 0 + 255 * 255 + 0);
+        assert_eq!(ctx.black.sqr_diff(&ctx.blue), 0 + 0 + 255 * 255);
+        assert_eq!(
+            ctx.black.sqr_diff(&ctx.grey),
+            127 * 127 + 127 * 127 + 127 * 127
+        );
+        assert_eq!(
+            ctx.black.sqr_diff(&ctx.white),
+            255 * 255 + 255 * 255 + 255 * 255
+        );
     }
 
     #[test]
