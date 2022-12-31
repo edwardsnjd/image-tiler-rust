@@ -22,30 +22,14 @@ impl<T> MatchingTileStrategy<'_, T> {
     }
 
     pub fn choose(&self, target: &RgbaImage, cell_size: Dimensions) -> Vec<TileLocation<T>> {
-        self.grid(target, cell_size)
+        grid(target, cell_size)
             .iter()
             .map(|t| self.select_tile(target, t))
             .collect()
     }
 
-    fn grid<I>(&self, target: &I, cell_size: Dimensions) -> Vec<Rectangle>
-    where
-        I: GenericImageView,
-    {
-        let (tw, th) = target.dimensions();
-        let (cw, ch) = cell_size;
-
-        let xs = (0..tw).step_by(cw as usize);
-        let ys = (0..th).step_by(ch as usize);
-
-        itertools::iproduct!(xs, ys)
-            .map(|(x, y)| Rectangle::new(x, y, cw, ch))
-            .collect()
-    }
-
     fn select_tile(&self, img: &RgbaImage, r: &Rectangle) -> TileLocation<T> {
-        let target = imageops::crop_imm(img, r.x, r.y, r.width, r.height);
-        let target_info = analyse(&target.to_image(), self.options);
+        let target_info = self.analyse_tile(img, r);
         let best_tile = *self
             .analysis
             .iter()
@@ -54,6 +38,26 @@ impl<T> MatchingTileStrategy<'_, T> {
             .0;
         (best_tile, (r.x.into(), r.y.into()), (r.width, r.height))
     }
+
+    fn analyse_tile(&self, img: &RgbaImage, r: &Rectangle) -> ImageInfo {
+        let target = imageops::crop_imm(img, r.x, r.y, r.width, r.height);
+        analyse(&target.to_image(), self.options)
+    }
+}
+
+fn grid<I>(target: &I, cell_size: Dimensions) -> Vec<Rectangle>
+where
+    I: GenericImageView,
+{
+    let (tw, th) = target.dimensions();
+    let (cw, ch) = cell_size;
+
+    let xs = (0..tw).step_by(cw as usize);
+    let ys = (0..th).step_by(ch as usize);
+
+    itertools::iproduct!(xs, ys)
+        .map(|(x, y)| Rectangle::new(x, y, cw, ch))
+        .collect()
 }
 
 #[cfg(test)]
