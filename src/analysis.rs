@@ -82,9 +82,18 @@ impl ColorInfo {
     }
 
     fn abs_diff(&self, other: &ColorInfo) -> i32 {
-        num::abs(self.red as i32 - other.red as i32)
-            + num::abs(self.green as i32 - other.green as i32)
-            + num::abs(self.blue as i32 - other.blue as i32)
+        let df = |a,b| num::abs(a - b);
+        df(self.red as i32, other.red as i32)
+            + df(self.green as i32, other.green as i32)
+            + df(self.blue as i32, other.blue as i32)
+    }
+
+    #[allow(dead_code)]
+    fn sqr_diff(&self, other: &ColorInfo) -> i32 {
+        let df = |a,b| num::pow(a - b, 2);
+        df(self.red as i32, other.red as i32)
+            + df(self.green as i32, other.green as i32)
+            + df(self.blue as i32, other.blue as i32)
     }
 }
 
@@ -146,6 +155,23 @@ mod test {
         assert_eq!(ctx.black.abs_diff(&ctx.blue), 0 + 0 + 255);
         assert_eq!(ctx.black.abs_diff(&ctx.grey), 127 + 127 + 127);
         assert_eq!(ctx.black.abs_diff(&ctx.white), 255 + 255 + 255);
+    }
+
+    #[test]
+    fn test_returns_squared_image_color_difference() {
+        let ctx = setup();
+        assert_eq!(ctx.black.sqr_diff(&ctx.black), 0);
+        assert_eq!(ctx.red.sqr_diff(&ctx.red), 0);
+        assert_eq!(ctx.green.sqr_diff(&ctx.green), 0);
+        assert_eq!(ctx.blue.sqr_diff(&ctx.blue), 0);
+        assert_eq!(ctx.grey.sqr_diff(&ctx.grey), 0);
+        assert_eq!(ctx.white.sqr_diff(&ctx.white), 0);
+
+        assert_eq!(ctx.black.sqr_diff(&ctx.red), 255*255 + 0 + 0);
+        assert_eq!(ctx.black.sqr_diff(&ctx.green), 0 + 255*255 + 0);
+        assert_eq!(ctx.black.sqr_diff(&ctx.blue), 0 + 0 + 255*255);
+        assert_eq!(ctx.black.sqr_diff(&ctx.grey), 127*127 + 127*127 + 127*127);
+        assert_eq!(ctx.black.sqr_diff(&ctx.white), 255*255 + 255*255 + 255*255);
     }
 
     #[test]
