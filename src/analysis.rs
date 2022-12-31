@@ -54,7 +54,7 @@ impl ImageInfo {
 
         let pairs: Vec<(&ColorInfo, &ColorInfo)> = this.iter().zip(that.iter()).collect();
 
-        pairs.iter().map(|(a, b)| a.abs_diff(b)).collect()
+        pairs.iter().map(|(a, b)| a.sqr_diff(b)).collect()
     }
 }
 
