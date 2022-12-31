@@ -4,6 +4,9 @@
 # Testing
 /images/
 /out*
+/lib/
+/tiles_lib/
+/*.jpg
 
 # Output from cargo flamegraph
 /flamegraph.svg
