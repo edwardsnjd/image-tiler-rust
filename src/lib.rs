@@ -68,12 +68,7 @@ fn analyse_available_images<'a>(
 ) -> HashMap<&'a PathBuf, ImageInfo> {
     lib_paths
         .iter()
-        .filter_map(|p| {
-            load_image(p)
-                .ok()
-                .map(|i| analyse(&i, options))
-                .map(|o| (p, o))
-        })
+        .filter_map(|p| load_image(p).map(|i| (p, analyse(&i, options))).ok())
         .collect()
 }
 
