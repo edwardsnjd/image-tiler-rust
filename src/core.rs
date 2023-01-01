@@ -1,11 +1,59 @@
 /// Alias for width and height
 pub type Dimensions = (u32, u32);
 
-/// Alias for pixel position
-pub type Point = (i64, i64);
-
 /// Convenience type alias for a tile and where to draw it
-pub type TileLocation<'a, T> = (&'a T, Point, Dimensions);
+pub type TileLocation<'a, T> = (&'a T, PixelRegion);
+
+#[derive(Eq, PartialEq, Debug, Hash)]
+pub struct Rectangle {
+    pub x: u32,
+    pub y: u32,
+    pub width: u32,
+    pub height: u32,
+}
+
+impl Rectangle {
+    pub fn new(x: u32, y: u32, width: u32, height: u32) -> Self {
+        Self {
+            x,
+            y,
+            width,
+            height,
+        }
+    }
+}
+
+/// The position of a tile expressed in terms of pixel coords.
+pub struct PixelRegion {
+    pub x: i64,
+    pub y: i64,
+    pub width: u32,
+    pub height: u32,
+}
+
+impl PixelRegion {
+    pub fn new(x: i64, y: i64, width: u32, height: u32) -> Self {
+        Self {
+            x,
+            y,
+            width,
+            height,
+        }
+    }
+
+    pub fn from(r: &Rectangle) -> Self {
+        Self::new(r.x.into(), r.y.into(), r.width, r.height)
+    }
+
+    pub fn scale(&self, ratio: u32) -> Self {
+        Self::new(
+            self.x * (ratio as i64),
+            self.y * (ratio as i64),
+            self.width * ratio,
+            self.height * ratio,
+        )
+    }
+}
 
 /// Extension trait for TileLocation (since it's a built in type)
 pub trait TileLocationExtensions<T> {
@@ -15,12 +63,8 @@ pub trait TileLocationExtensions<T> {
 
 impl<T> TileLocationExtensions<T> for TileLocation<'_, T> {
     fn scale(&self, ratio: u32) -> TileLocation<T> {
-        let (p, position, size) = self;
-        (
-            p,
-            position.map(|v| v * (ratio as i64)),
-            size.map(|v| v * ratio),
-        )
+        let (p, region) = self;
+        (p, region.scale(ratio))
     }
 }
 

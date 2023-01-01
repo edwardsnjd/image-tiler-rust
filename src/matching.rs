@@ -1,12 +1,9 @@
 use std::collections::HashMap;
 
-use image::imageops;
-use image::GenericImageView;
-use image::RgbaImage;
+use image::{imageops, GenericImageView, RgbaImage};
 
 use crate::analysis::{analyse, AnalysisOptions, ImageInfo};
-use crate::core::{Dimensions, TileLocation};
-use crate::tiling::Rectangle;
+use crate::core::{Dimensions, PixelRegion, Rectangle, TileLocation};
 
 pub struct MatchingTileStrategy<'a, T> {
     options: &'a AnalysisOptions,
@@ -38,7 +35,7 @@ impl<T> MatchingTileStrategy<'_, T> {
             .min_by_key(|(_, info)| info.diff(&target_info).iter().sum::<i32>())
             .unwrap()
             .0;
-        (best_tile, (r.x.into(), r.y.into()), (r.width, r.height))
+        (best_tile, PixelRegion::from(r))
     }
 
     fn analyse_tile(&self, img: &RgbaImage, r: &Rectangle) -> ImageInfo {

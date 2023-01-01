@@ -1,3 +1,5 @@
+use crate::core::Rectangle;
+
 /// Choose the area to use as a tile from an image of the given dimensions.
 pub fn choose_tile_area(width: u32, height: u32) -> Rectangle {
     let (x, y, s) = if width < height {
@@ -7,25 +9,6 @@ pub fn choose_tile_area(width: u32, height: u32) -> Rectangle {
     };
 
     Rectangle::new(x, y, s, s)
-}
-
-#[derive(Eq, PartialEq, Debug, Hash)]
-pub struct Rectangle {
-    pub x: u32,
-    pub y: u32,
-    pub width: u32,
-    pub height: u32,
-}
-
-impl Rectangle {
-    pub fn new(x: u32, y: u32, width: u32, height: u32) -> Self {
-        Self {
-            x,
-            y,
-            width,
-            height,
-        }
-    }
 }
 
 #[cfg(test)]

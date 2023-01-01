@@ -132,9 +132,9 @@ trait Drawable {
 
 impl Drawable for TileLocation<'_, PathBuf> {
     fn draw_onto(&self, target: &mut RgbaImage) {
-        let (tile, (x, y), (w, h)) = self;
+        let (tile, region) = self;
         let img = load_image(tile).unwrap();
-        let thumb = at_size(img, *w, *h);
-        imageops::overlay(target, &thumb, *x, *y);
+        let thumb = at_size(img, region.width, region.height);
+        imageops::overlay(target, &thumb, region.x, region.y);
     }
 }
