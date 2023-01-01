@@ -37,7 +37,7 @@ pub fn mosaic(target_path: &str, lib_path: &str) -> IoResult<RgbaImage> {
     let tiles = tiles.iter().map(|t| t.scale(ratio)).collect();
     let output_size = target.dimensions().scale(ratio);
 
-    let output_image = build_image2(output_size, tiles);
+    let output_image = build_image(output_size, tiles);
 
     Ok(output_image)
 }
@@ -102,7 +102,7 @@ where
 }
 
 /// Build an image from tile paths
-fn build_image2((width, height): Dimensions, tiles: Vec<TileLocation<PathBuf>>) -> RgbaImage {
+fn build_image((width, height): Dimensions, tiles: Vec<TileLocation<PathBuf>>) -> RgbaImage {
     let mut output = RgbaImage::new(width, height);
     for (tile, (x, y), (w, h)) in tiles {
         let img = load_image(tile).unwrap();
