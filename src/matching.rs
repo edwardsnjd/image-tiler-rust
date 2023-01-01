@@ -18,7 +18,11 @@ impl<T> MatchingTileStrategy<'_, T> {
         MatchingTileStrategy { options, analysis }
     }
 
-    pub fn choose(&self, target: &RgbaImage, cell_size: Dimensions) -> Vec<TileLocation<T, PixelRegion>> {
+    pub fn choose(
+        &self,
+        target: &RgbaImage,
+        cell_size: Dimensions,
+    ) -> Vec<TileLocation<T, PixelRegion>> {
         // This implementation assumes we can select the correct tile for
         // each cell independently.
         grid(target, cell_size)
