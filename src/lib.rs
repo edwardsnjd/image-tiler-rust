@@ -25,7 +25,7 @@ pub fn mosaic(target_path: &str, lib_path: &str) -> IoResult<RgbaImage> {
     let tile_size = 100;
 
     let target = load_image(Path::new(target_path)).unwrap();
-    let lib_paths = find_lib_images(lib_path)?;
+    let lib_paths = find_paths(lib_path)?;
 
     let analysis_options = AnalysisOptions::new(Some(analysis_size));
     let lib_info = analyse_available_images(&lib_paths, &analysis_options);
@@ -55,9 +55,9 @@ pub fn save(image: &RgbaImage, p: &str) -> ImageResult<()> {
 
 // Path handling
 
-fn find_lib_images(path: &str) -> IoResult<Vec<PathBuf>> {
+fn find_paths(path: &str) -> IoResult<Vec<PathBuf>> {
     let path_reader = read_dir(path)?;
-    let paths = path_reader.filter_map(|f| f.ok()).map(|f| f.path());
+    let paths = path_reader.filter_map(Result::ok).map(|f| f.path());
     Ok(paths.collect())
 }
 
