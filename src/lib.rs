@@ -12,7 +12,7 @@ use std::io::Result as IoResult;
 use std::path::{Path, PathBuf};
 
 use crate::analysis::AnalysisOptions;
-use crate::core::{Dimensions, TileLocation, TileLocationExtensions, TupleExtensions};
+use crate::core::{Dimensions, PixelRegion, TileLocation, TileLocationExtensions, TupleExtensions};
 use crate::matching::MatchingTileStrategy;
 use crate::tiling::choose_tile_area;
 
@@ -130,7 +130,7 @@ trait Drawable {
     fn draw_onto(&self, target: &mut RgbaImage);
 }
 
-impl Drawable for TileLocation<'_, PathBuf> {
+impl Drawable for TileLocation<'_, PathBuf, PixelRegion> {
     fn draw_onto(&self, target: &mut RgbaImage) {
         let (tile, region) = self;
         let img = load_image(tile).unwrap();

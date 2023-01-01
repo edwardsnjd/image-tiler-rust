@@ -2,7 +2,7 @@
 pub type Dimensions = (u32, u32);
 
 /// Convenience type alias for a tile and where to draw it
-pub type TileLocation<'a, T> = (&'a T, PixelRegion);
+pub type TileLocation<'a, T, U> = (&'a T, U);
 
 #[derive(Eq, PartialEq, Debug, Hash)]
 pub struct Rectangle {
@@ -56,13 +56,13 @@ impl PixelRegion {
 }
 
 /// Extension trait for TileLocation (since it's a built in type)
-pub trait TileLocationExtensions<T> {
+pub trait TileLocationExtensions<T, U> {
     /// Scale the size and position of the tile location
-    fn scale(&self, ratio: u32) -> TileLocation<T>;
+    fn scale(&self, ratio: u32) -> TileLocation<T, U>;
 }
 
-impl<T> TileLocationExtensions<T> for TileLocation<'_, T> {
-    fn scale(&self, ratio: u32) -> TileLocation<T> {
+impl<T> TileLocationExtensions<T, PixelRegion> for TileLocation<'_, T, PixelRegion> {
+    fn scale(&self, ratio: u32) -> TileLocation<T, PixelRegion> {
         let (p, region) = self;
         (p, region.scale(ratio))
     }

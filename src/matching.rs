@@ -18,7 +18,7 @@ impl<T> MatchingTileStrategy<'_, T> {
         MatchingTileStrategy { options, analysis }
     }
 
-    pub fn choose(&self, target: &RgbaImage, cell_size: Dimensions) -> Vec<TileLocation<T>> {
+    pub fn choose(&self, target: &RgbaImage, cell_size: Dimensions) -> Vec<TileLocation<T, PixelRegion>> {
         // This implementation assumes we can select the correct tile for
         // each cell independently.
         grid(target, cell_size)
@@ -27,7 +27,7 @@ impl<T> MatchingTileStrategy<'_, T> {
             .collect()
     }
 
-    fn select_tile(&self, img: &RgbaImage, r: &Rectangle) -> TileLocation<T> {
+    fn select_tile(&self, img: &RgbaImage, r: &Rectangle) -> TileLocation<T, PixelRegion> {
         let target_info = self.analyse_tile(img, r);
         let best_tile = *self
             .analysis
