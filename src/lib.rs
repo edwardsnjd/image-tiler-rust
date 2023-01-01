@@ -1,7 +1,6 @@
 mod analysis;
 mod core;
 mod matching;
-mod pile;
 mod tiling;
 
 use analysis::{analyse, ImageInfo};
@@ -15,26 +14,9 @@ use std::path::{Path, PathBuf};
 use crate::analysis::AnalysisOptions;
 use crate::core::{Dimensions, TileLocation, TileLocationExtensions, TupleExtensions};
 use crate::matching::MatchingTileStrategy;
-use crate::pile::RandomPileStrategy;
 use crate::tiling::choose_tile_area;
 
 // Public actions
-
-/// Build and return a pile image from the given tiles.
-pub fn pile(lib_path: &str) -> IoResult<RgbaImage> {
-    let minimum_number_of_tiles = 64;
-    let output_size = (4096, 4096);
-
-    let lib_paths = find_lib_images(lib_path)?;
-    let lib_images = load_available_images(&lib_paths);
-
-    let strategy = RandomPileStrategy::new(&lib_images, Some(minimum_number_of_tiles));
-    let tiles = strategy.choose(output_size);
-
-    let output_image = build_image(output_size, tiles);
-
-    Ok(output_image)
-}
 
 /// Build and return a mosaic image from the given tiles.
 pub fn mosaic(target_path: &str, lib_path: &str) -> IoResult<RgbaImage> {
@@ -95,13 +77,6 @@ fn analyse_available_images<'a>(
         .collect()
 }
 
-fn load_available_images(lib_paths: &[PathBuf]) -> Vec<RgbaImage> {
-    lib_paths
-        .iter()
-        .filter_map(|p| load_image(p).ok())
-        .collect()
-}
-
 /// Load an image from a file
 fn load_image(path: &Path) -> ImageResult<RgbaImage> {
     image::open(path).map(DynamicImage::into_rgba8)
@@ -124,15 +99,6 @@ where
     let (width, height) = img.dimensions();
     let tile = choose_tile_area(width, height);
     imageops::crop_imm(img, tile.x, tile.y, tile.width, tile.height)
-}
-
-/// Build an image from tiles
-fn build_image((width, height): Dimensions, tiles: Vec<TileLocation<RgbaImage>>) -> RgbaImage {
-    let mut output = RgbaImage::new(width, height);
-    for (tile, (x, y), (_w, _h)) in tiles {
-        imageops::overlay(&mut output, tile, x, y);
-    }
-    output
 }
 
 /// Build an image from tile paths

@@ -37,11 +37,6 @@ tile:
 	chafa tile.jpg
 .PHONY: tile
 
-pile:
-	time target/release/pile tiles_lib// > pile.jpg
-	chafa pile.jpg
-.PHONY: pile
-
 mosaic:
 	time target/release/mosaic images/242.jpg tiles_lib/ > mosaic.jpg
 	chafa mosaic.jpg
