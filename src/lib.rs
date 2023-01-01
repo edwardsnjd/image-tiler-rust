@@ -101,16 +101,7 @@ where
     imageops::crop_imm(img, tile.x, tile.y, tile.width, tile.height)
 }
 
-/// Build an image from tile paths
-fn build_image((width, height): Dimensions, tiles: Vec<TileLocation<PathBuf>>) -> RgbaImage {
-    let mut output = RgbaImage::new(width, height);
-    for (tile, (x, y), (w, h)) in tiles {
-        let img = load_image(tile).unwrap();
-        let thumb = at_size(img, w, h);
-        imageops::overlay(&mut output, &thumb, x, y);
-    }
-    output
-}
+// Image constructions
 
 /// Resize an image if necessary
 fn at_size(img: RgbaImage, w: u32, h: u32) -> RgbaImage {
@@ -119,5 +110,31 @@ fn at_size(img: RgbaImage, w: u32, h: u32) -> RgbaImage {
         img
     } else {
         imageops::thumbnail(&img, w, h)
+    }
+}
+
+/// Build an image
+fn build_image<T>((width, height): Dimensions, tiles: Vec<T>) -> RgbaImage
+where
+    T: Drawable,
+{
+    let mut output = RgbaImage::new(width, height);
+    for t in tiles {
+        t.draw_onto(&mut output);
+    }
+    output
+}
+
+trait Drawable {
+    /// Draw this drawable onto the given target image.
+    fn draw_onto(&self, target: &mut RgbaImage);
+}
+
+impl Drawable for TileLocation<'_, PathBuf> {
+    fn draw_onto(&self, target: &mut RgbaImage) {
+        let (tile, (x, y), (w, h)) = self;
+        let img = load_image(tile).unwrap();
+        let thumb = at_size(img, *w, *h);
+        imageops::overlay(target, &thumb, *x, *y);
     }
 }
