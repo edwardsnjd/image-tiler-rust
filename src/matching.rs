@@ -18,10 +18,12 @@ impl<T> MatchingTileStrategy<'_, T> {
         MatchingTileStrategy { options, analysis }
     }
 
+    // Independent tile selection
+
     pub fn choose(
         &self,
         target: &RgbaImage,
-        cell_size: Dimensions,
+        cell_size: &Dimensions,
     ) -> Vec<TileLocation<T, PixelRegion>> {
         // This implementation assumes we can select the correct tile for
         // each cell independently.
@@ -43,18 +45,18 @@ impl<T> MatchingTileStrategy<'_, T> {
     }
 }
 
-fn grid<I>(target: &I, cell_size: Dimensions) -> Vec<Rectangle>
+fn grid<I>(target: &I, cell_size: &Dimensions) -> Vec<Rectangle>
 where
     I: GenericImageView,
 {
     let (tw, th) = target.dimensions();
     let (cw, ch) = cell_size;
 
-    let xs = (0..tw).step_by(cw as usize);
-    let ys = (0..th).step_by(ch as usize);
+    let xs = (0..tw).step_by(*cw as usize);
+    let ys = (0..th).step_by(*ch as usize);
 
     itertools::iproduct!(xs, ys)
-        .map(|(x, y)| Rectangle::new(x, y, cw, ch))
+        .map(|(x, y)| Rectangle::new(x, y, *cw, *ch))
         .collect()
 }
 
