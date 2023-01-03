@@ -32,7 +32,7 @@ impl<T> MatchingTileStrategy<'_, T> {
     }
 
     fn select_tile(&self, img: &RgbaImage, r: &Rectangle) -> TileLocation<T, PixelRegion> {
-        let target_info = self.analyse_tile(img, r);
+        let target_info = analyse_cell(img, r, &self.options);
         let best_tile = *self
             .analysis
             .iter()
@@ -40,11 +40,6 @@ impl<T> MatchingTileStrategy<'_, T> {
             .unwrap()
             .0;
         (best_tile, PixelRegion::from(r))
-    }
-
-    fn analyse_tile(&self, img: &RgbaImage, r: &Rectangle) -> ImageInfo {
-        let target = imageops::crop_imm(img, r.x, r.y, r.width, r.height);
-        analyse(&target.to_image(), self.options)
     }
 }
 
@@ -61,6 +56,11 @@ where
     itertools::iproduct!(xs, ys)
         .map(|(x, y)| Rectangle::new(x, y, cw, ch))
         .collect()
+}
+
+fn analyse_cell(img: &RgbaImage, r: &Rectangle, options: &AnalysisOptions) -> ImageInfo {
+    let target = imageops::crop_imm(img, r.x, r.y, r.width, r.height);
+    analyse(&target.to_image(), options)
 }
 
 #[cfg(test)]
