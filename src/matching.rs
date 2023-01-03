@@ -43,6 +43,21 @@ impl<T> MatchingTileStrategy<'_, T> {
             .0;
         (best_tile, PixelRegion::from(r))
     }
+
+    // Holistic tile selection
+
+    #[allow(dead_code)]
+    pub fn choose2(
+        &self,
+        target: &RgbaImage,
+        cell_size: &Dimensions,
+    ) -> Vec<TileLocation<T, PixelRegion>> {
+        let _cells_info: Vec<(&Rectangle, ImageInfo)> = grid(target, cell_size)
+            .iter()
+            .map(|t| (t, analyse_cell(target, t, &self.options)))
+            .collect();
+        todo!();
+    }
 }
 
 fn grid<I>(target: &I, cell_size: &Dimensions) -> Vec<Rectangle>
