@@ -53,11 +53,25 @@ impl<T> MatchingTileStrategy<'_, T> {
         target: &RgbaImage,
         cell_size: &Dimensions,
     ) -> Vec<TileLocation<T, PixelRegion>> {
-        let _cells_info: Vec<(&Rectangle, ImageInfo)> = grid(target, cell_size)
+        let cells_info: Vec<(&CellCoords, ImageInfo)> = grid2(target, cell_size)
             .iter()
-            .map(|t| (t, analyse_cell(target, t, self.options)))
+            .map(|c| (c, c.to_rect(cell_size)))
+            .map(|(c, t)| (c, analyse_cell(target, &t, self.options)))
             .collect();
-        todo!();
+
+        let cells_ranked: Vec<(&CellCoords, HashMap<&T, i32>)> = cells_info
+            .iter()
+            .map(|(c, i)| (*c, self.rank_library(&i)))
+            .collect();
+
+        todo!()
+    }
+
+    fn rank_library(&self, info: &ImageInfo) -> HashMap<&T, i32> {
+        self.analysis
+            .iter()
+            .map(|(&t, i)| (t, i.diff(&info).iter().sum::<i32>()))
+            .collect()
     }
 }
 
@@ -66,6 +80,14 @@ impl<T> MatchingTileStrategy<'_, T> {
 struct CellCoords {
     x: i32,
     y: i32,
+}
+
+impl CellCoords {
+    fn to_rect(&self, cell_size: &Dimensions) -> Rectangle {
+        let (cw, ch) = cell_size;
+        let (x, y) = (self.x as u32 * *cw, self.y as u32 * *ch);
+        Rectangle::new(x, y, *cw, *ch)
+    }
 }
 
 trait Surrounded<T> {
@@ -187,6 +209,23 @@ where
 
     itertools::iproduct!(xs, ys)
         .map(|(x, y)| Rectangle::new(x, y, *cw, *ch))
+        .collect()
+}
+
+fn grid2<I>(target: &I, cell_size: &Dimensions) -> Vec<CellCoords>
+where
+    I: GenericImageView,
+{
+    let (tw, th) = target.dimensions();
+    let (cw, ch) = cell_size;
+
+    let (across, down) = (1 + tw / cw, 1 + th / ch);
+
+    let xs = 0..across as i32;
+    let ys = 0..down as i32;
+
+    itertools::iproduct!(xs, ys)
+        .map(|(x, y)| CellCoords { x, y })
         .collect()
 }
 
