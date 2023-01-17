@@ -87,8 +87,9 @@ impl Surrounded<CellCoords> for CellCoords {
             .filter_map(|(x, y)| {
                 let x_dist = x - self.x;
                 let y_dist = y - self.y;
+
                 let d = pow(x_dist, 2) + pow(y_dist, 2);
-                println!("{},{} => {}", x, y, d);
+
                 if d <= d2 {
                     Some(CellCoords { x, y })
                 } else {
@@ -108,23 +109,19 @@ mod surrounding_test {
 
     #[test]
     fn test_finds_self() {
-        let target = CellCoords { x: 5, y: 5 };
-
-        let results = target.surrounding(0);
+        let results = CellCoords { x: 5, y: 5 }.surrounding(0);
 
         assert_eq!(results.len(), 1);
-
         assert!(results.contains(&CellCoords { x: 5, y: 5 }));
     }
 
     #[test]
+    #[rustfmt::skip]
     fn test_finds_immediate_neighbours() {
-        let target = CellCoords { x: 2, y: 2 };
-
-        let results = target.surrounding(1);
+        let results = CellCoords { x: 2, y: 2 }.surrounding(1);
 
         assert_eq!(results.len(), 5);
-        assert_eq!(map(&results, (0,0), (3,3)), concat!(
+        assert_eq!(map(&results, (0, 0), (3, 3)), concat!(
             "....",
             "..x.",
             ".xxx",
@@ -133,13 +130,12 @@ mod surrounding_test {
     }
 
     #[test]
+    #[rustfmt::skip]
     fn test_finds_neighbours_within_radius() {
-        let target = CellCoords { x: 2, y: 2 };
-
-        let results = target.surrounding(2);
+        let results = CellCoords { x: 2, y: 2 }.surrounding(2);
 
         assert_eq!(results.len(), 13);
-        assert_eq!(map(&results, (0,0), (4,4)), concat!(
+        assert_eq!(map(&results, (0, 0), (4, 4)), concat!(
             "..x..",
             ".xxx.",
             "xxxxx",
@@ -149,26 +145,32 @@ mod surrounding_test {
     }
 
     #[test]
+    #[rustfmt::skip]
     fn test_goes_negative() {
-        let target = CellCoords { x: 0, y: 0 };
-
-        let results = target.surrounding(1);
+        let results = CellCoords { x: 0, y: 0 }.surrounding(1);
 
         assert_eq!(results.len(), 5);
-        assert_eq!(map(&results, (-1,-1), (1,1)), concat!(
+        assert_eq!(map(&results, (-1, -1), (1, 1)), concat!(
             ".x.",
             "xxx",
             ".x.",
         ));
     }
 
-    fn map(results: &Vec<CellCoords>, min: (i32, i32), max: (i32,i32)) -> String {
+    // Convert results to a visual map over given bounds
+    fn map(results: &Vec<CellCoords>, min: (i32, i32), max: (i32, i32)) -> String {
         (min.1..=max.1)
-            .map(|y|
+            .map(|y| {
                 (min.0..=max.0)
-                .map(|x| if results.contains(&CellCoords { x, y }) {"x"} else {"."})
-                .join("")
-            )
+                    .map(|x| {
+                        if results.contains(&CellCoords { x, y }) {
+                            "x"
+                        } else {
+                            "."
+                        }
+                    })
+                    .join("")
+            })
             .join("")
     }
 }
@@ -190,14 +192,5 @@ where
 
 fn analyse_cell(img: &RgbaImage, r: &Rectangle, options: &AnalysisOptions) -> ImageInfo {
     let target = imageops::crop_imm(img, r.x, r.y, r.width, r.height);
-    analyse(&target.to_image(), options) }
-
-#[cfg(test)]
-mod test {
-    // use super::*;
-
-    // #[test]
-    // fn test_foo() {
-    //     todo!();
-    // }
+    analyse(&target.to_image(), options)
 }
