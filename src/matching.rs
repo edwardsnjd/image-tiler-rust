@@ -11,7 +11,7 @@ pub struct MatchingTileStrategy<'a, T> {
     analysis: &'a HashMap<&'a T, ImageInfo>,
 }
 
-impl<T: std::hash::Hash + std::cmp::Eq> MatchingTileStrategy<'_, T> {
+impl<T: std::hash::Hash + std::cmp::Eq + std::fmt::Debug> MatchingTileStrategy<'_, T> {
     pub fn new<'a>(
         analysis: &'a HashMap<&T, ImageInfo>,
         options: &'a AnalysisOptions,
@@ -55,22 +55,65 @@ impl<T: std::hash::Hash + std::cmp::Eq> MatchingTileStrategy<'_, T> {
         target: &RgbaImage,
         cell_size: &Dimensions,
     ) -> Vec<TileLocation<T, PixelRegion>> {
-        let binding = grid2(target, cell_size);
-
-        let cells_info: Vec<(&CellCoords, ImageInfo)> = binding
-            .iter()
+        let cells_ranked: Vec<(CellCoords, HashMap<&T, i32>)> = grid2(target, cell_size)
+            .into_iter()
             .map(|c| (c, c.to_rect(cell_size)))
             .map(|(c, t)| (c, analyse_cell(target, &t, self.options)))
+            .map(|(c, i)| (c, self.rank_library(&i)))
             .collect();
 
-        let cells_ranked: Vec<(&CellCoords, HashMap<&T, i32>)> = cells_info
-            .iter()
-            .map(|(c, i)| (*c, self.rank_library(i)))
+        eprintln!("Writing rankings");
+        for (c, ranked) in cells_ranked.iter().take(3) {
+            eprintln!("{:#?}", c);
+            for (p, s) in ranked.iter().take(3) {
+                eprintln!("{:#?} = {:?}", p, s);
+            }
+        }
+
+        // Calculate penalties
+        let mut penalties: HashMap<CellCoords, HashMap<&T, i32>> = HashMap::new();
+        for (c, ranked) in cells_ranked.iter() {
+            // Penalise score for best in nearby cells to according to proximity
+            let best = self.pick_best(ranked);
+            for sc in c.surrounding(7) {
+                let penalty = match sc.sqr_distance(c) {
+                    0 => 0,
+                    1 => 20 * 20 * 200,
+                    2..=6 => 20 * 20 * 100,
+                    5..=9 => 20 * 20 * 50,
+                    _ => 0,
+                };
+
+                penalties
+                    .entry(sc)
+                    .and_modify(|target_penalties| {
+                        target_penalties
+                            .entry(best)
+                            .and_modify(|total| *total += penalty)
+                            .or_insert(penalty);
+                    })
+                    .or_insert_with(|| HashMap::from([(best, penalty)]));
+            }
+        }
+
+        // Recalculate rankings including penalties
+        let cells_adjusted: Vec<(CellCoords, HashMap<&T, i32>)> = cells_ranked
+            .into_iter()
+            .map(|(c, ranked)| {
+                let foo = ranked
+                    .iter()
+                    .map(|(&t, score)| {
+                        let bar = penalties.get(&c).map_or(0, |h| *h.get(t).unwrap_or(&0));
+                        (t, score - bar)
+                    })
+                    .collect();
+                (c, foo)
+            })
             .collect();
 
-        cells_ranked
+        cells_adjusted
             .iter()
-            .map(|(&c, ranked)| (self.best_after_weighting(ranked), c.to_region(cell_size)))
+            .map(|(c, ranked)| (self.pick_best(ranked), c.to_region(cell_size)))
             .collect()
     }
 
@@ -81,34 +124,110 @@ impl<T: std::hash::Hash + std::cmp::Eq> MatchingTileStrategy<'_, T> {
             .collect()
     }
 
-    fn best_after_weighting<'a>(&self, cells_ranked: &HashMap<&'a T, i32>) -> &'a T {
+    fn pick_best<'a>(&self, cells_ranked: &HashMap<&'a T, i32>) -> &'a T {
         cells_ranked
             .iter()
             .min_by(|a, b| a.1.cmp(b.1))
-            .map(|(&v, _)| v)
             .unwrap()
+            .0
     }
 }
 
 #[allow(dead_code)]
-#[derive(Clone, Copy, Hash, PartialEq, Debug)]
+#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug)]
 struct CellCoords {
     x: i32,
     y: i32,
 }
 
 impl CellCoords {
-    fn to_rect(&self, cell_size: &Dimensions) -> Rectangle {
+    #[allow(dead_code)]
+    fn abs_distance(&self, other: &Self) -> (i32, i32) {
+        let x_dist = other.x - self.x;
+        let y_dist = other.y - self.y;
+        (x_dist, y_dist)
+    }
+
+    #[allow(dead_code)]
+    fn sqr_distance(&self, other: &Self) -> i32 {
+        let (x_dist, y_dist) = self.abs_distance(other);
+        pow(x_dist, 2) + pow(y_dist, 2)
+    }
+
+    fn to_rect(self, cell_size: &Dimensions) -> Rectangle {
         let (cw, ch) = cell_size;
         let (x, y) = (self.x as u32 * *cw, self.y as u32 * *ch);
         Rectangle::new(x, y, *cw, *ch)
     }
 
-    fn to_region(&self, cell_size: &Dimensions) -> PixelRegion {
+    fn to_region(self, cell_size: &Dimensions) -> PixelRegion {
         let (cw, ch) = cell_size;
         let (x, y) = (self.x as i64 * *cw as i64, self.y as i64 * *ch as i64);
         PixelRegion::new(x, y, *cw, *ch)
+    }
+}
 
+#[cfg(test)]
+mod cellcoords_test {
+    use super::CellCoords;
+
+    #[test]
+    fn test_distance_is_zero_for_same() {
+        let target = CellCoords { x: 5, y: 5 };
+
+        let d = target.abs_distance(&target);
+        let d2 = target.sqr_distance(&target);
+
+        assert_eq!(d, (0, 0));
+        assert_eq!(d2, 0);
+    }
+
+    #[test]
+    fn test_distance_is_1_for_bordering() {
+        let target = CellCoords { x: 5, y: 5 };
+
+        let borders = vec![
+            CellCoords { x: 4, y: 5 },
+            CellCoords { x: 6, y: 5 },
+            CellCoords { x: 5, y: 4 },
+            CellCoords { x: 5, y: 6 },
+        ];
+
+        let ds: Vec<(i32, i32)> = borders
+            .iter()
+            .map(|border| target.abs_distance(border))
+            .collect();
+        let d2s: Vec<i32> = borders
+            .iter()
+            .map(|border| target.sqr_distance(border))
+            .collect();
+
+        assert_eq!(ds, vec!((-1, 0), (1, 0), (0, -1), (0, 1)));
+        assert_eq!(d2s, vec!(1, 1, 1, 1));
+    }
+
+    #[test]
+    fn test_distance_is_more_further_out() {
+        let target = CellCoords { x: 5, y: 5 };
+
+        let borders = vec![
+            CellCoords { x: 4, y: 4 },
+            CellCoords { x: 6, y: 6 },
+            CellCoords { x: 4, y: 4 },
+            CellCoords { x: 6, y: 6 },
+        ];
+
+        let ds: Vec<(i32, i32)> = borders
+            .iter()
+            .map(|border| target.abs_distance(border))
+            .collect();
+        let d2s: Vec<i32> = borders
+            .iter()
+            .map(|border| target.sqr_distance(border))
+            .collect();
+
+        assert_eq!(ds, vec!((-1, -1), (1, 1), (-1, -1), (1, 1)));
+        assert_eq!(d2s, vec!(2, 2, 2, 2));
     }
 }
 
@@ -128,18 +247,8 @@ impl Surrounded<CellCoords> for CellCoords {
         let d2 = pow(distance, 2);
 
         itertools::iproduct!(xs, ys)
-            .filter_map(|(x, y)| {
-                let x_dist = x - self.x;
-                let y_dist = y - self.y;
-
-                let d = pow(x_dist, 2) + pow(y_dist, 2);
-
-                if d <= d2 {
-                    Some(CellCoords { x, y })
-                } else {
-                    None
-                }
-            })
+            .map(|(x, y)| CellCoords { x, y })
+            .filter(|candidate| self.sqr_distance(candidate) <= d2)
             .collect()
     }
 }
