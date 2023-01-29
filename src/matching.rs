@@ -11,7 +11,7 @@ pub struct MatchingTileStrategy<'a, T> {
     analysis: &'a HashMap<&'a T, ImageInfo>,
 }
 
-impl<T> MatchingTileStrategy<'_, T> {
+impl<T: std::hash::Hash + std::cmp::Eq> MatchingTileStrategy<'_, T> {
     pub fn new<'a>(
         analysis: &'a HashMap<&T, ImageInfo>,
         options: &'a AnalysisOptions,
@@ -21,6 +21,7 @@ impl<T> MatchingTileStrategy<'_, T> {
 
     // Independent tile selection
 
+    #[allow(dead_code)]
     pub fn choose(
         &self,
         target: &RgbaImage,
@@ -34,6 +35,7 @@ impl<T> MatchingTileStrategy<'_, T> {
             .collect()
     }
 
+    #[allow(dead_code)]
     fn select_tile(&self, img: &RgbaImage, r: &Rectangle) -> TileLocation<T, PixelRegion> {
         let target_info = analyse_cell(img, r, self.options);
         let best_tile = *self
@@ -53,7 +55,9 @@ impl<T> MatchingTileStrategy<'_, T> {
         target: &RgbaImage,
         cell_size: &Dimensions,
     ) -> Vec<TileLocation<T, PixelRegion>> {
-        let cells_info: Vec<(&CellCoords, ImageInfo)> = grid2(target, cell_size)
+        let binding = grid2(target, cell_size);
+
+        let cells_info: Vec<(&CellCoords, ImageInfo)> = binding
             .iter()
             .map(|c| (c, c.to_rect(cell_size)))
             .map(|(c, t)| (c, analyse_cell(target, &t, self.options)))
@@ -61,22 +65,33 @@ impl<T> MatchingTileStrategy<'_, T> {
 
         let cells_ranked: Vec<(&CellCoords, HashMap<&T, i32>)> = cells_info
             .iter()
-            .map(|(c, i)| (*c, self.rank_library(&i)))
+            .map(|(c, i)| (*c, self.rank_library(i)))
             .collect();
 
-        todo!()
+        cells_ranked
+            .iter()
+            .map(|(&c, ranked)| (self.best_after_weighting(ranked), c.to_region(cell_size)))
+            .collect()
     }
 
     fn rank_library(&self, info: &ImageInfo) -> HashMap<&T, i32> {
         self.analysis
             .iter()
-            .map(|(&t, i)| (t, i.diff(&info).iter().sum::<i32>()))
+            .map(|(&t, i)| (t, i.diff(info).iter().sum::<i32>()))
             .collect()
+    }
+
+    fn best_after_weighting<'a>(&self, cells_ranked: &HashMap<&'a T, i32>) -> &'a T {
+        cells_ranked
+            .iter()
+            .min_by(|a, b| a.1.cmp(b.1))
+            .map(|(&v, _)| v)
+            .unwrap()
     }
 }
 
 #[allow(dead_code)]
-#[derive(Hash, PartialEq, Debug)]
+#[derive(Clone, Copy, Hash, PartialEq, Debug)]
 struct CellCoords {
     x: i32,
     y: i32,
@@ -87,6 +102,13 @@ impl CellCoords {
         let (cw, ch) = cell_size;
         let (x, y) = (self.x as u32 * *cw, self.y as u32 * *ch);
         Rectangle::new(x, y, *cw, *ch)
+    }
+
+    fn to_region(&self, cell_size: &Dimensions) -> PixelRegion {
+        let (cw, ch) = cell_size;
+        let (x, y) = (self.x as i64 * *cw as i64, self.y as i64 * *ch as i64);
+        PixelRegion::new(x, y, *cw, *ch)
+
     }
 }
 
@@ -180,7 +202,7 @@ mod surrounding_test {
     }
 
     // Convert results to a visual map over given bounds
-    fn map(results: &Vec<CellCoords>, min: (i32, i32), max: (i32, i32)) -> String {
+    fn map(results: &[CellCoords], min: (i32, i32), max: (i32, i32)) -> String {
         (min.1..=max.1)
             .map(|y| {
                 (min.0..=max.0)
@@ -197,6 +219,7 @@ mod surrounding_test {
     }
 }
 
+#[allow(dead_code)]
 fn grid<I>(target: &I, cell_size: &Dimensions) -> Vec<Rectangle>
 where
     I: GenericImageView,
