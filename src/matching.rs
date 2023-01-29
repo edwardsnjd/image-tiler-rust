@@ -62,11 +62,11 @@ impl<T: std::hash::Hash + std::cmp::Eq + std::fmt::Debug> MatchingTileStrategy<'
             .map(|(c, i)| (c, self.rank_library(&i)))
             .collect();
 
-        eprintln!("Writing rankings");
+        eprintln!("Raw rankings");
         for (c, ranked) in cells_ranked.iter().take(3) {
-            eprintln!("{:#?}", c);
+            eprintln!("{:?}", c);
             for (p, s) in ranked.iter().take(3) {
-                eprintln!("{:#?} = {:?}", p, s);
+                eprintln!("{:?} = {:?}", p, s);
             }
         }
 
@@ -76,14 +76,7 @@ impl<T: std::hash::Hash + std::cmp::Eq + std::fmt::Debug> MatchingTileStrategy<'
             // Penalise score for best in nearby cells to according to proximity
             let best = self.pick_best(ranked);
             for sc in c.surrounding(7) {
-                let penalty = match sc.sqr_distance(c) {
-                    0 => 0,
-                    1 => 20 * 20 * 200,
-                    2..=6 => 20 * 20 * 100,
-                    5..=9 => 20 * 20 * 50,
-                    _ => 0,
-                };
-
+                let penalty = calculate_penalty(&sc, &c);
                 penalties
                     .entry(sc)
                     .and_modify(|target_penalties| {
@@ -95,21 +88,35 @@ impl<T: std::hash::Hash + std::cmp::Eq + std::fmt::Debug> MatchingTileStrategy<'
                     .or_insert_with(|| HashMap::from([(best, penalty)]));
             }
         }
+        let get_penalty = |c, t| penalties.get(&c).map_or(0, |h| *h.get(t).unwrap_or(&0));
+
+        eprintln!("Penalties");
+        for (c, ps) in penalties.iter().take(3) {
+            eprintln!("{:?}", c);
+            for (p, s) in ps.iter().take(3) {
+                eprintln!("{:?} = {:?}", p, s);
+            }
+        }
 
         // Recalculate rankings including penalties
         let cells_adjusted: Vec<(CellCoords, HashMap<&T, i32>)> = cells_ranked
             .into_iter()
             .map(|(c, ranked)| {
-                let foo = ranked
+                let adjusted_ranked = ranked
                     .iter()
-                    .map(|(&t, score)| {
-                        let bar = penalties.get(&c).map_or(0, |h| *h.get(t).unwrap_or(&0));
-                        (t, score - bar)
-                    })
+                    .map(|(&t, score)| (t, score + get_penalty(c, t)))
                     .collect();
-                (c, foo)
+                (c, adjusted_ranked)
             })
             .collect();
+
+        eprintln!("Adjusted rankings");
+        for (c, ranked) in cells_adjusted.iter().take(3) {
+            eprintln!("{:?}", c);
+            for (p, s) in ranked.iter().take(3) {
+                eprintln!("{:?} = {:?}", p, s);
+            }
+        }
 
         cells_adjusted
             .iter()
@@ -125,11 +132,15 @@ impl<T: std::hash::Hash + std::cmp::Eq + std::fmt::Debug> MatchingTileStrategy<'
     }
 
     fn pick_best<'a>(&self, cells_ranked: &HashMap<&'a T, i32>) -> &'a T {
-        cells_ranked
-            .iter()
-            .min_by(|a, b| a.1.cmp(b.1))
-            .unwrap()
-            .0
+        cells_ranked.iter().min_by(|a, b| a.1.cmp(b.1)).unwrap().0
+    }
+}
+
+fn calculate_penalty(sc: &CellCoords, c: &CellCoords) -> i32 {
+    match sc.distance(c) {
+        (0, 0) => 0,
+        (0..=7, 0..=7) => 20 * 20 * 100,
+        _ => 0,
     }
 }
 
@@ -142,7 +153,7 @@ struct CellCoords {
 
 impl CellCoords {
     #[allow(dead_code)]
-    fn abs_distance(&self, other: &Self) -> (i32, i32) {
+    fn distance(&self, other: &Self) -> (i32, i32) {
         let x_dist = other.x - self.x;
         let y_dist = other.y - self.y;
         (x_dist, y_dist)
@@ -150,7 +161,7 @@ impl CellCoords {
 
     #[allow(dead_code)]
     fn sqr_distance(&self, other: &Self) -> i32 {
-        let (x_dist, y_dist) = self.abs_distance(other);
+        let (x_dist, y_dist) = self.distance(other);
         pow(x_dist, 2) + pow(y_dist, 2)
     }
 
@@ -175,7 +186,7 @@ mod cellcoords_test {
     fn test_distance_is_zero_for_same() {
         let target = CellCoords { x: 5, y: 5 };
 
-        let d = target.abs_distance(&target);
+        let d = target.distance(&target);
         let d2 = target.sqr_distance(&target);
 
         assert_eq!(d, (0, 0));
@@ -195,7 +206,7 @@ mod cellcoords_test {
 
         let ds: Vec<(i32, i32)> = borders
             .iter()
-            .map(|border| target.abs_distance(border))
+            .map(|border| target.distance(border))
             .collect();
         let d2s: Vec<i32> = borders
             .iter()
@@ -219,7 +230,7 @@ mod cellcoords_test {
 
         let ds: Vec<(i32, i32)> = borders
             .iter()
-            .map(|border| target.abs_distance(border))
+            .map(|border| target.distance(border))
             .collect();
         let d2s: Vec<i32> = borders
             .iter()
