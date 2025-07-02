@@ -90,7 +90,7 @@ impl ColorInfo {
     /// value of the colour differences.
     #[allow(dead_code)]
     pub fn abs_diff(&self, other: &ColorInfo) -> i32 {
-        let df = |a,b| num::abs(a - b);
+        let df = |a, b| num::abs(a - b);
         df(self.red as i32, other.red as i32)
             + df(self.green as i32, other.green as i32)
             + df(self.blue as i32, other.blue as i32)
@@ -100,7 +100,7 @@ impl ColorInfo {
     /// value of the colour differences.
     #[allow(dead_code)]
     pub fn sqr_diff(&self, other: &ColorInfo) -> i32 {
-        let df = |a,b| num::pow(a - b, 2);
+        let df = |a, b| num::pow(a - b, 2);
         df(self.red as i32, other.red as i32)
             + df(self.green as i32, other.green as i32)
             + df(self.blue as i32, other.blue as i32)

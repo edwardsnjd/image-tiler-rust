@@ -20,6 +20,7 @@ impl<T> MatchingTileStrategy<'_, T> {
 
     // Independent tile selection
 
+    /// Choose the best set of tiles for this target image.
     pub fn choose(
         &self,
         target: &RgbaImage,
@@ -54,12 +55,16 @@ impl<T> MatchingTileStrategy<'_, T> {
     ) -> Vec<TileLocation<T, PixelRegion>> {
         let _cells_info: Vec<(&Rectangle, ImageInfo)> = grid(target, cell_size)
             .iter()
-            .map(|t| (t, analyse_cell(target, t, &self.options)))
+            .map(|t| (t, analyse_cell(target, t, self.options)))
             .collect();
         todo!();
     }
 }
 
+/// Build a grid of non-overlapping cell positions covering the target.
+///
+/// If the target isn't a perfect multiple of the cell_size in one or both
+/// dimensions then the part not able to be covered is ignored.
 fn grid<I>(target: &I, cell_size: &Dimensions) -> Vec<Rectangle>
 where
     I: GenericImageView,
