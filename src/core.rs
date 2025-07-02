@@ -119,18 +119,12 @@ impl<'a, T> GridView<'a, T> {
 
         let count = items.len();
         if count != (width * height) as usize {
-            panic!(
-                "Dimensions, {:?}, do not work with {} items",
-                dimensions, count
-            );
+            panic!("Dimensions, {dimensions:?}, do not work with {count} items");
         }
 
         let (max_x, max_y) = (region.x + region.width - 1, region.y + region.height - 1);
         if max_x >= width || max_y >= height {
-            panic!(
-                "Region, {:?}, is out of bounds for dimensions {:?}",
-                region, dimensions
-            );
+            panic!("Region, {region:?}, is out of bounds for dimensions {dimensions:?}");
         }
 
         Self {
@@ -149,12 +143,8 @@ impl<'a, T> GridView<'a, T> {
             height: rheight,
         } = self.region;
         if dx >= rwidth || dy >= rheight {
-            panic!(
-                "Point, ({}, {}), out of bounds for region size {:?}",
-                dx,
-                dy,
-                (rwidth, rheight)
-            );
+            let size = (rwidth, rheight);
+            panic!("Point, ({dx}, {dy}), out of bounds for region size {size:?}");
         }
 
         let (width, _) = self.dimensions;
