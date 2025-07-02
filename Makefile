@@ -28,19 +28,25 @@ lint:
 	cargo clippy
 .PHONY: lint
 
-build:
-	cargo build --release
+build: target/release/mosaic target/release/tile
 .PHONY: build
 
-tile:
-	time target/release/tile images/2.jpg > tile.jpg
-	chafa tile.jpg
+tile: tile.jpg
 .PHONY: tile
 
-mosaic:
-	time target/release/mosaic images/242.jpg tiles_lib/ > mosaic.jpg
-	chafa mosaic.jpg
+tile.jpg: target/release/tile
+	time target/release/tile images/2.jpg > tile.jpg
+#	chafa tile.jpg
+
+mosaic: mosaic.jpg
 .PHONY: mosaic
+
+mosaic.jpg: target/release/mosaic
+	time target/release/mosaic images/242.jpg tiles_lib/ > mosaic.jpg
+#	chafa mosaic.jpg
+
+target/release/%:
+	cargo build --release
 
 performance:
 	cargo flamegraph --root --bin mosaic -- images/3.jpg tiles_lib/ > mosaic.jpg
