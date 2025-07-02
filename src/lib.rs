@@ -1,3 +1,10 @@
+//! Image mosaic builder.
+//!
+//! Analyses a library of images and builds a mosaic out of tiles
+//! for a target image.
+
+#![warn(missing_docs)]
+
 mod analysis;
 mod core;
 mod matching;
