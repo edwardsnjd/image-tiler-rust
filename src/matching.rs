@@ -30,19 +30,19 @@ impl<T> MatchingTileStrategy<'_, T> {
         // each cell independently.
         grid(target, cell_size)
             .iter()
-            .map(|t| self.select_tile(target, t))
+            .map(|t| (self.select_tile(target, t), PixelRegion::from(t)))
             .collect()
     }
 
-    fn select_tile(&self, img: &RgbaImage, r: &Rectangle) -> TileLocation<T, PixelRegion> {
-        let target_info = analyse_cell(img, r, &self.options);
-        let best_tile = *self
+    /// Choose the best tile for the given rectangle of the target.
+    fn select_tile(&self, img: &RgbaImage, r: &Rectangle) -> &T {
+        let target_info = analyse_cell(img, r, self.options);
+        self
             .analysis
             .iter()
             .min_by_key(|(_, info)| info.diff(&target_info).iter().sum::<i32>())
             .unwrap()
-            .0;
-        (best_tile, PixelRegion::from(r))
+            .0
     }
 
     // Holistic tile selection
