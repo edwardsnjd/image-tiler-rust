@@ -37,8 +37,7 @@ impl<T> MatchingTileStrategy<'_, T> {
     /// Choose the best tile for the given rectangle of the target.
     fn select_tile(&self, img: &RgbaImage, r: &Rectangle) -> &T {
         let target_info = analyse_cell(img, r, self.options);
-        self
-            .analysis
+        self.analysis
             .iter()
             .min_by_key(|(_, tile)| tile_difference_weight(&target_info, tile))
             .unwrap()
