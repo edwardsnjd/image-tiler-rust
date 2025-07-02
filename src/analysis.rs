@@ -1,9 +1,12 @@
+//! Raw image analysis functions.
+
 use core::fmt::Debug;
 
 use image::{imageops, Pixel, RgbaImage};
 
 const SAMPLE_SIZE: u8 = 8;
 
+/// Analyse the given image.
 pub fn analyse(img: &RgbaImage, options: &AnalysisOptions) -> ImageInfo {
     let size = options.sample_size as u32;
     let (width, height) = img.dimensions();
@@ -26,11 +29,15 @@ pub fn analyse(img: &RgbaImage, options: &AnalysisOptions) -> ImageInfo {
     }
 }
 
+/// Options for the analysis of an image.
 pub struct AnalysisOptions {
+    /// The number of samples along each axis i.e. a
+    /// square grid of this dimension.
     pub sample_size: u8,
 }
 
 impl AnalysisOptions {
+    /// Build some analysis options.
     pub fn new(sample_size: Option<u8>) -> AnalysisOptions {
         Self {
             sample_size: sample_size.unwrap_or(SAMPLE_SIZE),
@@ -47,6 +54,7 @@ pub struct ImageInfo {
 }
 
 impl ImageInfo {
+    /// Find the differences between this and another image.
     pub fn diff(&self, other: &ImageInfo) -> Vec<i32> {
         let (this, that) = (&self.colors, &other.colors);
 
@@ -73,21 +81,26 @@ impl Debug for ColorInfo {
 }
 
 impl ColorInfo {
-    fn new(red: u8, green: u8, blue: u8) -> ColorInfo {
+    /// Create a new instance representing a colour.
+    pub fn new(red: u8, green: u8, blue: u8) -> ColorInfo {
         Self { red, green, blue }
     }
 
+    /// Find the difference between two colours.  Use the absolute
+    /// value of the colour differences.
     #[allow(dead_code)]
-    fn abs_diff(&self, other: &ColorInfo) -> i32 {
-        let df = |a, b| num::abs(a - b);
+    pub fn abs_diff(&self, other: &ColorInfo) -> i32 {
+        let df = |a,b| num::abs(a - b);
         df(self.red as i32, other.red as i32)
             + df(self.green as i32, other.green as i32)
             + df(self.blue as i32, other.blue as i32)
     }
 
+    /// Find the difference between two colours.  Use the square
+    /// value of the colour differences.
     #[allow(dead_code)]
-    fn sqr_diff(&self, other: &ColorInfo) -> i32 {
-        let df = |a, b| num::pow(a - b, 2);
+    pub fn sqr_diff(&self, other: &ColorInfo) -> i32 {
+        let df = |a,b| num::pow(a - b, 2);
         df(self.red as i32, other.red as i32)
             + df(self.green as i32, other.green as i32)
             + df(self.blue as i32, other.blue as i32)

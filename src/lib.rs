@@ -5,7 +5,7 @@
 
 #![warn(missing_docs)]
 
-mod analysis;
+pub mod analysis;
 mod core;
 mod matching;
 mod tiling;
