@@ -94,3 +94,173 @@ where
         self.map(|v| *v * ratio)
     }
 }
+
+/// A view into a grid of items, represented as a linear slice.
+#[allow(dead_code)]
+pub struct GridView<'a, T> {
+    items: &'a [T],
+    dimensions: Dimensions,
+    region: Rectangle,
+}
+
+#[allow(dead_code)]
+impl<'a, T> GridView<'a, T> {
+    /// Create a view that covers the entire input.
+    fn all(items: &'a [T], dimensions: Dimensions) -> Self {
+        let (width, height) = dimensions;
+        let region = Rectangle::new(0, 0, width, height);
+
+        Self::new(items, dimensions, region)
+    }
+
+    /// Create a view over a specific region of the input.
+    fn new(items: &'a [T], dimensions: Dimensions, region: Rectangle) -> Self {
+        let (width, height) = dimensions;
+
+        let count = items.len();
+        if count != (width * height) as usize {
+            panic!(
+                "Dimensions, {:?}, do not work with {} items",
+                dimensions, count
+            );
+        }
+
+        let (max_x, max_y) = (region.x + region.width - 1, region.y + region.height - 1);
+        if max_x >= width || max_y >= height {
+            panic!(
+                "Region, {:?}, is out of bounds for dimensions {:?}",
+                region, dimensions
+            );
+        }
+
+        Self {
+            items,
+            dimensions,
+            region,
+        }
+    }
+
+    /// Get the item at the specified offset within the region.
+    fn get(&self, dx: u32, dy: u32) -> &T {
+        let Rectangle {
+            x: rx,
+            y: ry,
+            width: rwidth,
+            height: rheight,
+        } = self.region;
+        if dx >= rwidth || dy >= rheight {
+            panic!(
+                "Point, ({}, {}), out of bounds for region size {:?}",
+                dx,
+                dy,
+                (rwidth, rheight)
+            );
+        }
+
+        let (width, _) = self.dimensions;
+        let (x, y) = (rx + dx, ry + dy);
+        let index = x + (y * width);
+
+        &self.items[index as usize]
+    }
+
+    /// Create a new view that is a subset of the current view.
+    fn subset(&self, target: Rectangle) -> GridView<T> {
+        GridView::new(
+            self.items,
+            self.dimensions,
+            Rectangle {
+                x: self.region.x + target.x,
+                y: self.region.y + target.y,
+                width: target.width,
+                height: target.height,
+            },
+        )
+    }
+}
+
+#[cfg(test)]
+mod grid_view_tests {
+    use super::GridView;
+    use crate::core::Rectangle;
+
+    // GridView#all
+
+    #[test]
+    #[should_panic]
+    fn grid_rejects_invalid_dimensions() {
+        let vals = vec![0, 1, 2, 3, 4];
+        let dims = (2, 3);
+
+        GridView::all(&vals, dims);
+    }
+
+    #[test]
+    fn grid_accepts_valid_dimensions() {
+        let vals = vec![0, 1, 2, 3, 4, 5];
+        let dims = (2, 3);
+
+        GridView::all(&vals, dims);
+    }
+
+    // GridView#new
+
+    #[test]
+    #[should_panic]
+    fn grid_rejects_invalid_region() {
+        let vals = vec![0, 1, 2, 3, 4, 5];
+        let dims = (2, 3);
+
+        GridView::new(&vals, dims, Rectangle::new(1, 1, 2, 3));
+    }
+
+    // GridView#get
+
+    #[test]
+    fn grid_get_finds_correct_items() {
+        let vals = vec![0, 1, 2, 3, 4, 5];
+        let dims = (2, 3);
+        let grid = GridView::new(&vals, dims, Rectangle::new(0, 0, 2, 3));
+
+        assert_eq!(grid.get(0, 0), &0);
+        assert_eq!(grid.get(1, 0), &1);
+        assert_eq!(grid.get(0, 1), &2);
+        assert_eq!(grid.get(1, 1), &3);
+        assert_eq!(grid.get(0, 2), &4);
+        assert_eq!(grid.get(1, 2), &5);
+    }
+
+    #[test]
+    #[should_panic]
+    fn grid_get_rejects_invalid_index() {
+        let vals = vec![0, 1, 2, 3, 4, 5];
+        let dims = (2, 3);
+
+        let grid = GridView::new(&vals, dims, Rectangle::new(0, 0, 2, 3));
+
+        grid.get(2, 0);
+    }
+
+    // GridView#subset
+
+    #[test]
+    fn grid_subset_finds_correct_items() {
+        let vals = vec![0, 1, 2, 3, 4, 5];
+        let dims = (2, 3);
+        let grid = GridView::new(&vals, dims, Rectangle::new(0, 0, 2, 3));
+
+        let result = grid.subset(Rectangle::new(1, 1, 1, 1));
+
+        assert_eq!(result.get(0, 0), &3);
+    }
+
+    #[test]
+    #[should_panic]
+    fn grid_subset_rejects_invalid_target() {
+        let vals = vec![0, 1, 2, 3, 4, 5];
+        let dims = (2, 3);
+        let grid = GridView::new(&vals, dims, Rectangle::new(0, 0, 2, 3));
+
+        grid.subset(Rectangle::new(2, 2, 2, 2));
+    }
+}
