@@ -40,7 +40,7 @@ impl<T> MatchingTileStrategy<'_, T> {
         self
             .analysis
             .iter()
-            .min_by_key(|(_, info)| info.diff(&target_info).iter().sum::<i32>())
+            .min_by_key(|(_, tile)| tile_difference_weight(&target_info, tile))
             .unwrap()
             .0
     }
@@ -59,6 +59,11 @@ impl<T> MatchingTileStrategy<'_, T> {
             .collect();
         todo!();
     }
+}
+
+/// Calculate the difference between the target region and a tile.
+fn tile_difference_weight(target: &ImageInfo, tile: &ImageInfo) -> i32 {
+    tile.diff(target).iter().sum::<i32>()
 }
 
 /// Build a grid of non-overlapping cell positions covering the target.
