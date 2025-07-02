@@ -5,7 +5,7 @@ use tiler::{save, tile};
 ///
 /// # Usage
 ///
-/// tile <source_path> > tile.jpg
+/// tile SOURCE_PATH > tile.jpg
 ///
 /// # Panics
 ///

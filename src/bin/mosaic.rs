@@ -5,7 +5,7 @@ use tiler::{mosaic, save};
 ///
 /// # Usage
 ///
-/// mosaic <target> <tiles_dir> > output.jpg
+/// mosaic TARGET TILES_DIR > output.jpg
 ///
 /// # Panics
 ///
