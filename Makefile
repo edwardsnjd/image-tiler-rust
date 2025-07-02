@@ -50,5 +50,9 @@ target/release/%:
 
 performance:
 	cargo flamegraph --root --bin mosaic -- images/3.jpg tiles_lib/ > mosaic.jpg
-	chafa flamegraph.svg
+#	chafa flamegraph.svg
 .PHONY: performance
+
+bench:
+	cargo bench
+.PHONY: bench
