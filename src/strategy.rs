@@ -127,13 +127,11 @@ where
 
         for (rect, best_tile) in best_tiles {
             // Penalise this tile in all following rectangles
-            let following_rects = rects.iter().skip_while(|r| r != &rect).skip(1);
+            let following_rects = rects.iter().skip_while(|&r| r != rect).skip(1);
             for following_rect in following_rects {
-                if let Some(lib_weights) = cell_options.get_mut(following_rect) {
-                    if let Some(weight) = lib_weights.get_mut(best_tile) {
-                        *weight += self.duplicate_penalty;
-                    }
-                }
+                let lib_weights = cell_options.get_mut(following_rect).unwrap();
+                let weight = lib_weights.get_mut(best_tile).unwrap();
+                *weight += self.duplicate_penalty;
             }
         }
 
