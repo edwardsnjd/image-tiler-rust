@@ -1,6 +1,5 @@
-use std::collections::HashMap;
-
 use image::{imageops, GenericImageView, RgbaImage};
+use std::collections::HashMap;
 
 use crate::analysis::{analyse, AnalysisOptions, ImageInfo};
 use crate::core::{Dimensions, PixelRegion, Rectangle, TileLocation};
@@ -11,6 +10,8 @@ pub trait TilingStrategy<T> {
     fn choose(&self, target: &RgbaImage) -> Vec<TileLocation<T, PixelRegion>>;
 }
 
+// Independent tile selection
+
 pub struct IndependentStrategy<'a, T> {
     options: &'a AnalysisOptions,
     analysis: &'a HashMap<&'a T, ImageInfo>,
@@ -19,6 +20,8 @@ pub struct IndependentStrategy<'a, T> {
 
 impl<T> TilingStrategy<T> for IndependentStrategy<'_, T> {
     /// Choose the best set of tiles for this target image.
+    ///
+    /// This picks the best tile independent of all other tiles.
     fn choose(&self, target: &RgbaImage) -> Vec<TileLocation<T, PixelRegion>> {
         // This implementation assumes we can select the correct tile for
         // each cell independently.
@@ -53,6 +56,8 @@ impl<T> IndependentStrategy<'_, T> {
     }
 }
 
+// Utilities
+
 /// Calculate the difference between the target region and a tile.
 fn tile_difference_weight(target: &ImageInfo, tile: &ImageInfo) -> i32 {
     tile.diff(target).iter().sum::<i32>()
@@ -77,29 +82,50 @@ where
         .collect()
 }
 
+/// Analyse part of a target image.
 fn analyse_cell(img: &RgbaImage, r: &Rectangle, options: &AnalysisOptions) -> ImageInfo {
     let target = imageops::crop_imm(img, r.x, r.y, r.width, r.height);
     analyse(&target.to_image(), options)
 }
 
+// Tests
+
 #[cfg(test)]
 mod strategy_tests {
     use super::*;
     use image::{Rgba, RgbaImage};
+    use itertools::Itertools;
+
+    // Utils
 
     struct TestContext {
         analysis_options: AnalysisOptions,
         cell_size: Dimensions,
-        blue_tile: RgbaImage,
+        red: Rgba<u8>,
+        green: Rgba<u8>,
+        blue: Rgba<u8>,
+        red_tile1: RgbaImage,
+        red_tile2: RgbaImage,
         green_tile: RgbaImage,
+        blue_tile: RgbaImage,
     }
 
     fn setup() -> TestContext {
+        let red_pixel = Rgba([255, 0, 0, 255]);
+        let redish_pixel = Rgba([254, 0, 0, 255]);
+        let green_pixel = Rgba([0, 255, 0, 255]);
+        let blue_pixel = Rgba([0, 0, 255, 255]);
+
         TestContext {
             analysis_options: AnalysisOptions::new(Some(1)),
             cell_size: (10, 10),
-            blue_tile: RgbaImage::from_pixel(10, 10, Rgba([0, 0, 255, 255])),
-            green_tile: RgbaImage::from_pixel(10, 10, Rgba([0, 255, 0, 255])),
+            red: red_pixel,
+            green: green_pixel,
+            blue: blue_pixel,
+            red_tile1: RgbaImage::from_pixel(10, 10, red_pixel),
+            red_tile2: RgbaImage::from_pixel(10, 10, redish_pixel),
+            green_tile: RgbaImage::from_pixel(10, 10, green_pixel),
+            blue_tile: RgbaImage::from_pixel(10, 10, blue_pixel),
         }
     }
 
@@ -113,32 +139,79 @@ mod strategy_tests {
             .collect()
     }
 
-    #[test]
-    fn test_independent_strategy_picks_best_match() {
-        let ctx = setup();
-        let target_image = RgbaImage::from_pixel(10, 10, Rgba([0, 0, 255, 255]));
-        let analysis = analyse_tiles(&ctx, vec![&ctx.blue_tile, &ctx.green_tile]);
-        let strategy = IndependentStrategy::new(&analysis, &ctx.analysis_options, ctx.cell_size);
-
-        let result = strategy.choose(&target_image);
-
-        assert_eq!(result.len(), 1);
-        assert_eq!(result[0].0, &ctx.blue_tile);
+    fn sort_by_position<'a, T>(
+        result: &'a Vec<(&'a T, PixelRegion)>,
+    ) -> Vec<&'a (&'a T, PixelRegion)> {
+        result
+            .iter()
+            .sorted_by(|a, b| Ord::cmp(&a.1, &b.1))
+            .collect()
     }
 
-    #[test]
-    fn test_independent_strategy_picks_best_match_for_each_cell() {
-        let ctx = setup();
-        let mut target_image = RgbaImage::from_pixel(20, 10, Rgba([0, 0, 255, 255]));
-        let green_cell = RgbaImage::from_pixel(10, 10, Rgba([0, 255, 0, 255]));
-        image::imageops::overlay(&mut target_image, &green_cell, 10, 0);
-        let analysis = analyse_tiles(&ctx, vec![&ctx.blue_tile, &ctx.green_tile]);
-        let strategy = IndependentStrategy::new(&analysis, &ctx.analysis_options, ctx.cell_size);
+    fn blue_image(ctx: &TestContext) -> image::ImageBuffer<Rgba<u8>, Vec<u8>> {
+        RgbaImage::from_pixel(10, 10, ctx.blue)
+    }
 
-        let result = strategy.choose(&target_image);
+    fn blue_green_image(ctx: &TestContext) -> image::ImageBuffer<Rgba<u8>, Vec<u8>> {
+        let mut img = RgbaImage::from_pixel(20, 10, ctx.blue);
+        let green_cell = RgbaImage::from_pixel(10, 10, ctx.green);
+        image::imageops::overlay(&mut img, &green_cell, 10, 0);
+        img
+    }
 
-        assert_eq!(result.len(), 2);
-        assert_eq!(result[0].0, &ctx.blue_tile);
-        assert_eq!(result[1].0, &ctx.green_tile);
+    fn red_image(ctx: &TestContext) -> image::ImageBuffer<Rgba<u8>, Vec<u8>> {
+        RgbaImage::from_pixel(20, 10, ctx.red)
+    }
+
+    mod independent_strategy {
+        use crate::strategy::strategy_tests::*;
+
+        #[test]
+        fn test_independent_strategy_picks_best_match() {
+            let ctx = setup();
+
+            let blue_image = blue_image(&ctx);
+            let analysis = analyse_tiles(&ctx, vec![&ctx.blue_tile, &ctx.green_tile]);
+            let strategy =
+                IndependentStrategy::new(&analysis, &ctx.analysis_options, ctx.cell_size);
+
+            let result = strategy.choose(&blue_image);
+
+            assert_eq!(result.len(), 1);
+            assert_eq!(result[0].0, &ctx.blue_tile);
+        }
+
+        #[test]
+        fn test_independent_strategy_picks_best_match_for_each_cell() {
+            let ctx = setup();
+
+            let blue_green_image = blue_green_image(&ctx);
+            let analysis = analyse_tiles(&ctx, vec![&ctx.blue_tile, &ctx.green_tile]);
+            let strategy =
+                IndependentStrategy::new(&analysis, &ctx.analysis_options, ctx.cell_size);
+
+            let result = strategy.choose(&blue_green_image);
+
+            assert_eq!(result.len(), 2);
+            let result = sort_by_position(&result);
+            assert_eq!(result[0].0, &ctx.blue_tile);
+            assert_eq!(result[1].0, &ctx.green_tile);
+        }
+
+        #[test]
+        fn test_independent_strategy_allows_duplicate_neighbours() {
+            let ctx = setup();
+
+            let red_image = red_image(&ctx);
+            let analysis = analyse_tiles(&ctx, vec![&ctx.red_tile1, &ctx.red_tile2]);
+            let strategy =
+                IndependentStrategy::new(&analysis, &ctx.analysis_options, ctx.cell_size);
+
+            let result = strategy.choose(&red_image);
+
+            assert_eq!(result.len(), 2);
+            let result = sort_by_position(&result);
+            assert_eq!(result[0].0, result[1].0);
+        }
     }
 }

@@ -24,6 +24,7 @@ impl Rectangle {
 }
 
 /// The position of a tile expressed in terms of pixel coords.
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct PixelRegion {
     pub x: i64,
     pub y: i64,
