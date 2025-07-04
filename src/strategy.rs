@@ -56,6 +56,101 @@ impl<T> IndependentStrategy<'_, T> {
     }
 }
 
+// Holistic tile selection
+
+pub struct HolisticStrategy<'a, T>
+where
+    T: Eq + std::hash::Hash,
+{
+    options: &'a AnalysisOptions,
+    analysis: &'a HashMap<&'a T, ImageInfo>,
+    cell_size: Dimensions,
+    duplicate_penalty: i32,
+}
+
+#[allow(dead_code)]
+impl<'a, T> HolisticStrategy<'a, T>
+where
+    T: Eq + std::hash::Hash,
+{
+    pub fn new(
+        analysis: &'a HashMap<&'a T, ImageInfo>,
+        options: &'a AnalysisOptions,
+        cell_size: Dimensions,
+    ) -> Self {
+        Self {
+            options,
+            analysis,
+            cell_size,
+            duplicate_penalty: 50,
+        }
+    }
+
+    /// Choose the best tile for the given rectangle of the target.
+    fn evaluate_tile(&self, img: &RgbaImage, r: &Rectangle) -> HashMap<&'a T, i32> {
+        let target_info = analyse_cell(img, r, self.options);
+        self.analysis
+            .iter()
+            .map(|(i, tile)| (*i, tile_difference_weight(&target_info, tile)))
+            .collect()
+    }
+}
+
+impl<T> TilingStrategy<T> for HolisticStrategy<'_, T>
+where
+    T: Eq + std::hash::Hash,
+{
+    /// Choose the best set of tiles for this target image.
+    ///
+    /// This aims to avoid duplicates by penalising duplicates.
+    fn choose(&self, target: &RgbaImage) -> Vec<TileLocation<T, PixelRegion>> {
+        let rects = grid(target, &self.cell_size);
+
+        // Use the normal difference to evaluate the cost of each library image for each tile
+        let mut cell_options: HashMap<&Rectangle, HashMap<&T, i32>> = rects
+            .iter()
+            .map(|rect| (rect, self.evaluate_tile(target, rect)))
+            .collect();
+
+        // Find the best tile for each rectangle
+        let best_tiles: HashMap<&Rectangle, &T> = cell_options
+            .iter()
+            .map(|(&rect, lib_weights)| {
+                let (best, _) = lib_weights
+                    .iter()
+                    .min_by_key(|(_, weight)| *weight)
+                    .unwrap();
+                (rect, *best)
+            })
+            .collect();
+
+        for (rect, best_tile) in best_tiles {
+            // Penalise this tile in all following rectangles
+            let following_rects = rects.iter().skip_while(|r| r != &rect).skip(1);
+            for following_rect in following_rects {
+                if let Some(lib_weights) = cell_options.get_mut(following_rect) {
+                    if let Some(weight) = lib_weights.get_mut(best_tile) {
+                        *weight += self.duplicate_penalty;
+                    }
+                }
+            }
+        }
+
+        // Pick the best image for each tile
+        cell_options
+            .iter()
+            .map(|(rect, lib_weights)| {
+                let (best, _) = lib_weights
+                    .iter()
+                    .min_by_key(|(_, weight)| *weight)
+                    .unwrap();
+                (rect, best)
+            })
+            .map(|(rect, &best)| (best, PixelRegion::from(rect)))
+            .collect()
+    }
+}
+
 // Utilities
 
 /// Calculate the difference between the target region and a tile.
@@ -212,6 +307,55 @@ mod strategy_tests {
             assert_eq!(result.len(), 2);
             let result = sort_by_position(&result);
             assert_eq!(result[0].0, result[1].0);
+        }
+    }
+
+    mod holistic_strategy {
+        use crate::strategy::strategy_tests::*;
+
+        #[test]
+        fn test_holistic_strategy_picks_best_match() {
+            let ctx = setup();
+
+            let blue_image = blue_image(&ctx);
+            let analysis = analyse_tiles(&ctx, vec![&ctx.blue_tile, &ctx.green_tile]);
+            let strategy = HolisticStrategy::new(&analysis, &ctx.analysis_options, ctx.cell_size);
+
+            let result = strategy.choose(&blue_image);
+
+            assert_eq!(result.len(), 1);
+            assert_eq!(result[0].0, &ctx.blue_tile);
+        }
+
+        #[test]
+        fn test_holistic_strategy_picks_best_match_for_each_cell() {
+            let ctx = setup();
+
+            let blue_green_image = blue_green_image(&ctx);
+            let analysis = analyse_tiles(&ctx, vec![&ctx.blue_tile, &ctx.green_tile]);
+            let strategy = HolisticStrategy::new(&analysis, &ctx.analysis_options, ctx.cell_size);
+
+            let result = strategy.choose(&blue_green_image);
+
+            assert_eq!(result.len(), 2);
+            let result = sort_by_position(&result);
+            assert_eq!(result[0].0, &ctx.blue_tile);
+            assert_eq!(result[1].0, &ctx.green_tile);
+        }
+
+        #[test]
+        fn test_holistic_strategy_avoids_duplicate_neighbours() {
+            let ctx = setup();
+
+            let red_image = red_image(&ctx);
+            let analysis = analyse_tiles(&ctx, vec![&ctx.red_tile1, &ctx.red_tile2]);
+            let strategy = HolisticStrategy::new(&analysis, &ctx.analysis_options, ctx.cell_size);
+
+            let result = strategy.choose(&red_image);
+
+            assert_eq!(result.len(), 2);
+            let result = sort_by_position(&result);
+            assert_ne!(result[0].0, result[1].0);
         }
     }
 }
