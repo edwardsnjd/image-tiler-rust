@@ -17,10 +17,11 @@ use std::collections::HashMap;
 use std::fs::read_dir;
 use std::io::Result as IoResult;
 use std::path::{Path, PathBuf};
+use strategy::penalty_by_distance;
 
 use crate::analysis::AnalysisOptions;
 use crate::core::{Dimensions, PixelRegion, TileLocation, TileLocationExtensions, TupleExtensions};
-use crate::strategy::{IndependentStrategy, TilingStrategy};
+use crate::strategy::{HolisticStrategy, TilingStrategy};
 use crate::tiling::choose_tile_area;
 
 // Public actions
@@ -37,7 +38,12 @@ pub fn mosaic(target_path: &str, lib_path: &str) -> IoResult<RgbaImage> {
     let analysis_options = AnalysisOptions::new(Some(analysis_size));
     let lib_info = analyse_available_images(&lib_paths, &analysis_options);
 
-    let strategy = IndependentStrategy::new(&lib_info, &analysis_options, (cell_size, cell_size));
+    let strategy = HolisticStrategy::new(
+        &lib_info,
+        &analysis_options,
+        (cell_size, cell_size),
+        penalty_by_distance,
+    );
     let tiles = strategy.choose(&target);
 
     let ratio = tile_size / cell_size;

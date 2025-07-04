@@ -1,4 +1,5 @@
 use image::{imageops, GenericImageView, RgbaImage};
+use std::cmp::max;
 use std::collections::HashMap;
 
 use crate::analysis::{analyse, AnalysisOptions, ImageInfo};
@@ -66,7 +67,7 @@ where
     options: &'a AnalysisOptions,
     analysis: &'a HashMap<&'a T, ImageInfo>,
     cell_size: Dimensions,
-    duplicate_penalty: i32,
+    duplicate_penalty: fn(i32) -> i32,
 }
 
 #[allow(dead_code)]
@@ -78,12 +79,13 @@ where
         analysis: &'a HashMap<&'a T, ImageInfo>,
         options: &'a AnalysisOptions,
         cell_size: Dimensions,
+        duplicate_penalty: fn(i32) -> i32,
     ) -> Self {
         Self {
             options,
             analysis,
             cell_size,
-            duplicate_penalty: 50,
+            duplicate_penalty,
         }
     }
 
@@ -131,7 +133,10 @@ where
             for following_rect in following_rects {
                 let lib_weights = cell_options.get_mut(following_rect).unwrap();
                 let weight = lib_weights.get_mut(best_tile).unwrap();
-                *weight += self.duplicate_penalty;
+                let dist = num::abs(following_rect.y as i32 - rect.y as i32)
+                    + num::abs(following_rect.x as i32 - rect.x as i32);
+                let penalty = (self.duplicate_penalty)(dist);
+                *weight += penalty;
             }
         }
 
@@ -180,6 +185,13 @@ where
 fn analyse_cell(img: &RgbaImage, r: &Rectangle, options: &AnalysisOptions) -> ImageInfo {
     let target = imageops::crop_imm(img, r.x, r.y, r.width, r.height);
     analyse(&target.to_image(), options)
+}
+
+pub fn penalty_by_distance(dist: i32) -> i32 {
+    let max_penalty = 255 * 255 * 3 * 20 * 20 / 1000; // 78_030_000 // 34_214_534
+    let dist_threshold = 1000;
+    let penalty = (max_penalty / dist_threshold) * (dist_threshold - dist);
+    max(0, penalty)
 }
 
 // Tests
@@ -318,7 +330,8 @@ mod strategy_tests {
 
             let blue_image = blue_image(&ctx);
             let analysis = analyse_tiles(&ctx, vec![&ctx.blue_tile, &ctx.green_tile]);
-            let strategy = HolisticStrategy::new(&analysis, &ctx.analysis_options, ctx.cell_size);
+            let strategy =
+                HolisticStrategy::new(&analysis, &ctx.analysis_options, ctx.cell_size, |_| 10);
 
             let result = strategy.choose(&blue_image);
 
@@ -332,7 +345,8 @@ mod strategy_tests {
 
             let blue_green_image = blue_green_image(&ctx);
             let analysis = analyse_tiles(&ctx, vec![&ctx.blue_tile, &ctx.green_tile]);
-            let strategy = HolisticStrategy::new(&analysis, &ctx.analysis_options, ctx.cell_size);
+            let strategy =
+                HolisticStrategy::new(&analysis, &ctx.analysis_options, ctx.cell_size, |_| 10);
 
             let result = strategy.choose(&blue_green_image);
 
@@ -348,7 +362,8 @@ mod strategy_tests {
 
             let red_image = red_image(&ctx);
             let analysis = analyse_tiles(&ctx, vec![&ctx.red_tile1, &ctx.red_tile2]);
-            let strategy = HolisticStrategy::new(&analysis, &ctx.analysis_options, ctx.cell_size);
+            let strategy =
+                HolisticStrategy::new(&analysis, &ctx.analysis_options, ctx.cell_size, |_| 10);
 
             let result = strategy.choose(&red_image);
 

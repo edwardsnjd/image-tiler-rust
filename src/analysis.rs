@@ -88,6 +88,8 @@ impl ColorInfo {
 
     /// Find the difference between two colours.  Use the absolute
     /// value of the colour differences.
+    ///
+    /// Max difference is 3 * 255 = 765
     #[allow(dead_code)]
     pub fn abs_diff(&self, other: &ColorInfo) -> i32 {
         let df = |a, b| num::abs(a - b);
@@ -98,6 +100,8 @@ impl ColorInfo {
 
     /// Find the difference between two colours.  Use the square
     /// value of the colour differences.
+    ///
+    /// Max difference is 3 * 255^2 = 195075
     #[allow(dead_code)]
     pub fn sqr_diff(&self, other: &ColorInfo) -> i32 {
         let df = |a, b| num::pow(a - b, 2);
