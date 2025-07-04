@@ -33,6 +33,7 @@ impl<T> TilingStrategy<T> for IndependentStrategy<'_, T> {
 }
 
 impl<T> IndependentStrategy<'_, T> {
+    #[allow(dead_code)]
     pub fn new<'a>(
         analysis: &'a HashMap<&'a T, ImageInfo>,
         options: &'a AnalysisOptions,
