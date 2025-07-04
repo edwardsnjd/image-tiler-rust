@@ -81,3 +81,64 @@ fn analyse_cell(img: &RgbaImage, r: &Rectangle, options: &AnalysisOptions) -> Im
     let target = imageops::crop_imm(img, r.x, r.y, r.width, r.height);
     analyse(&target.to_image(), options)
 }
+
+#[cfg(test)]
+mod strategy_tests {
+    use super::*;
+    use image::{Rgba, RgbaImage};
+
+    struct TestContext {
+        analysis_options: AnalysisOptions,
+        cell_size: Dimensions,
+        blue_tile: RgbaImage,
+        green_tile: RgbaImage,
+    }
+
+    fn setup() -> TestContext {
+        TestContext {
+            analysis_options: AnalysisOptions::new(Some(1)),
+            cell_size: (10, 10),
+            blue_tile: RgbaImage::from_pixel(10, 10, Rgba([0, 0, 255, 255])),
+            green_tile: RgbaImage::from_pixel(10, 10, Rgba([0, 255, 0, 255])),
+        }
+    }
+
+    fn analyse_tiles<'a>(
+        ctx: &TestContext,
+        tiles: Vec<&'a RgbaImage>,
+    ) -> HashMap<&'a RgbaImage, ImageInfo> {
+        tiles
+            .into_iter()
+            .map(|tile| (tile, analyse(tile, &ctx.analysis_options)))
+            .collect()
+    }
+
+    #[test]
+    fn test_independent_strategy_picks_best_match() {
+        let ctx = setup();
+        let target_image = RgbaImage::from_pixel(10, 10, Rgba([0, 0, 255, 255]));
+        let analysis = analyse_tiles(&ctx, vec![&ctx.blue_tile, &ctx.green_tile]);
+        let strategy = IndependentStrategy::new(&analysis, &ctx.analysis_options, ctx.cell_size);
+
+        let result = strategy.choose(&target_image);
+
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].0, &ctx.blue_tile);
+    }
+
+    #[test]
+    fn test_independent_strategy_picks_best_match_for_each_cell() {
+        let ctx = setup();
+        let mut target_image = RgbaImage::from_pixel(20, 10, Rgba([0, 0, 255, 255]));
+        let green_cell = RgbaImage::from_pixel(10, 10, Rgba([0, 255, 0, 255]));
+        image::imageops::overlay(&mut target_image, &green_cell, 10, 0);
+        let analysis = analyse_tiles(&ctx, vec![&ctx.blue_tile, &ctx.green_tile]);
+        let strategy = IndependentStrategy::new(&analysis, &ctx.analysis_options, ctx.cell_size);
+
+        let result = strategy.choose(&target_image);
+
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].0, &ctx.blue_tile);
+        assert_eq!(result[1].0, &ctx.green_tile);
+    }
+}
