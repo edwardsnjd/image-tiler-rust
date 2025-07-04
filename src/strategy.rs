@@ -5,33 +5,41 @@ use image::{imageops, GenericImageView, RgbaImage};
 use crate::analysis::{analyse, AnalysisOptions, ImageInfo};
 use crate::core::{Dimensions, PixelRegion, Rectangle, TileLocation};
 
-pub struct MatchingTileStrategy<'a, T> {
-    options: &'a AnalysisOptions,
-    analysis: &'a HashMap<&'a T, ImageInfo>,
+/// The strategy used to pick tiles for a given target.
+pub trait TilingStrategy<T> {
+    /// Choose the best set of tiles for this target image.
+    fn choose(&self, target: &RgbaImage) -> Vec<TileLocation<T, PixelRegion>>;
 }
 
-impl<T> MatchingTileStrategy<'_, T> {
-    pub fn new<'a>(
-        analysis: &'a HashMap<&T, ImageInfo>,
-        options: &'a AnalysisOptions,
-    ) -> MatchingTileStrategy<'a, T> {
-        MatchingTileStrategy { options, analysis }
-    }
+pub struct IndependentStrategy<'a, T> {
+    options: &'a AnalysisOptions,
+    analysis: &'a HashMap<&'a T, ImageInfo>,
+    cell_size: Dimensions,
+}
 
-    // Independent tile selection
-
+impl<T> TilingStrategy<T> for IndependentStrategy<'_, T> {
     /// Choose the best set of tiles for this target image.
-    pub fn choose(
-        &self,
-        target: &RgbaImage,
-        cell_size: &Dimensions,
-    ) -> Vec<TileLocation<T, PixelRegion>> {
+    fn choose(&self, target: &RgbaImage) -> Vec<TileLocation<T, PixelRegion>> {
         // This implementation assumes we can select the correct tile for
         // each cell independently.
-        grid(target, cell_size)
+        grid(target, &self.cell_size)
             .iter()
             .map(|t| (self.select_tile(target, t), PixelRegion::from(t)))
             .collect()
+    }
+}
+
+impl<T> IndependentStrategy<'_, T> {
+    pub fn new<'a>(
+        analysis: &'a HashMap<&'a T, ImageInfo>,
+        options: &'a AnalysisOptions,
+        cell_size: Dimensions,
+    ) -> IndependentStrategy<'a, T> {
+        IndependentStrategy {
+            options,
+            analysis,
+            cell_size,
+        }
     }
 
     /// Choose the best tile for the given rectangle of the target.
@@ -42,21 +50,6 @@ impl<T> MatchingTileStrategy<'_, T> {
             .min_by_key(|(_, tile)| tile_difference_weight(&target_info, tile))
             .unwrap()
             .0
-    }
-
-    // Holistic tile selection
-
-    #[allow(dead_code)]
-    pub fn choose2(
-        &self,
-        target: &RgbaImage,
-        cell_size: &Dimensions,
-    ) -> Vec<TileLocation<T, PixelRegion>> {
-        let _cells_info: Vec<(&Rectangle, ImageInfo)> = grid(target, cell_size)
-            .iter()
-            .map(|t| (t, analyse_cell(target, t, self.options)))
-            .collect();
-        todo!();
     }
 }
 
@@ -87,14 +80,4 @@ where
 fn analyse_cell(img: &RgbaImage, r: &Rectangle, options: &AnalysisOptions) -> ImageInfo {
     let target = imageops::crop_imm(img, r.x, r.y, r.width, r.height);
     analyse(&target.to_image(), options)
-}
-
-#[cfg(test)]
-mod test {
-    // use super::*;
-
-    // #[test]
-    // fn test_foo() {
-    //     todo!();
-    // }
 }

@@ -7,7 +7,7 @@
 
 pub mod analysis;
 mod core;
-mod matching;
+mod strategy;
 mod tiling;
 
 use analysis::{analyse, ImageInfo};
@@ -20,7 +20,7 @@ use std::path::{Path, PathBuf};
 
 use crate::analysis::AnalysisOptions;
 use crate::core::{Dimensions, PixelRegion, TileLocation, TileLocationExtensions, TupleExtensions};
-use crate::matching::MatchingTileStrategy;
+use crate::strategy::{IndependentStrategy, TilingStrategy};
 use crate::tiling::choose_tile_area;
 
 // Public actions
@@ -37,8 +37,8 @@ pub fn mosaic(target_path: &str, lib_path: &str) -> IoResult<RgbaImage> {
     let analysis_options = AnalysisOptions::new(Some(analysis_size));
     let lib_info = analyse_available_images(&lib_paths, &analysis_options);
 
-    let strategy = MatchingTileStrategy::new(&lib_info, &analysis_options);
-    let tiles = strategy.choose(&target, &(cell_size, cell_size));
+    let strategy = IndependentStrategy::new(&lib_info, &analysis_options, (cell_size, cell_size));
+    let tiles = strategy.choose(&target);
 
     let ratio = tile_size / cell_size;
     let tiles = tiles.iter().map(|t| t.scale(ratio)).collect();
