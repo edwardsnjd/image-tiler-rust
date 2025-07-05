@@ -116,26 +116,24 @@ where
             .collect();
 
         // Find the best tile for each rectangle
-        let best_tiles: HashMap<&Rectangle, &T> = cell_options
-            .iter()
-            .map(|(&rect, lib_weights)| {
-                let (best, _) = lib_weights
-                    .iter()
-                    .min_by_key(|(_, weight)| *weight)
-                    .unwrap();
-                (rect, *best)
-            })
-            .collect();
+        for rect in rects.iter() { // TODO: Should order matter?
+            // Find best tile for this rect...
+            let best_tile = *cell_options.get(&rect).unwrap()
+                .iter()
+                .min_by_key(|(_, weight)| *weight)
+                .unwrap()
+                .0;
 
-        for (rect, best_tile) in best_tiles {
             // Penalise this tile in all following rectangles
             let following_rects = rects.iter().skip_while(|&r| r != rect).skip(1);
             for following_rect in following_rects {
                 let lib_weights = cell_options.get_mut(following_rect).unwrap();
                 let weight = lib_weights.get_mut(best_tile).unwrap();
+
                 let dist = num::abs(following_rect.y as i32 - rect.y as i32)
                     + num::abs(following_rect.x as i32 - rect.x as i32);
                 let penalty = (self.duplicate_penalty)(dist);
+
                 *weight += penalty;
             }
         }
@@ -188,8 +186,8 @@ fn analyse_cell(img: &RgbaImage, r: &Rectangle, options: &AnalysisOptions) -> Im
 }
 
 pub fn penalty_by_distance(dist: i32) -> i32 {
-    let max_penalty = 255 * 255 * 3 * 20 * 20 / 1000; // 78_030_000 // 34_214_534
-    let dist_threshold = 1000;
+    let max_penalty = 255 * 255 * 3 * 20 * 20 / 100; // 78_030_000 // 34_214_534
+    let dist_threshold = 300;
     let penalty = (max_penalty / dist_threshold) * (dist_threshold - dist);
     max(0, penalty)
 }
@@ -212,6 +210,7 @@ mod strategy_tests {
         blue: Rgba<u8>,
         red_tile1: RgbaImage,
         red_tile2: RgbaImage,
+        red_tile3: RgbaImage,
         green_tile: RgbaImage,
         blue_tile: RgbaImage,
     }
@@ -219,6 +218,7 @@ mod strategy_tests {
     fn setup() -> TestContext {
         let red_pixel = Rgba([255, 0, 0, 255]);
         let redish_pixel = Rgba([254, 0, 0, 255]);
+        let redy_pixel = Rgba([253, 0, 0, 255]);
         let green_pixel = Rgba([0, 255, 0, 255]);
         let blue_pixel = Rgba([0, 0, 255, 255]);
 
@@ -230,6 +230,7 @@ mod strategy_tests {
             blue: blue_pixel,
             red_tile1: RgbaImage::from_pixel(10, 10, red_pixel),
             red_tile2: RgbaImage::from_pixel(10, 10, redish_pixel),
+            red_tile3: RgbaImage::from_pixel(10, 10, redy_pixel),
             green_tile: RgbaImage::from_pixel(10, 10, green_pixel),
             blue_tile: RgbaImage::from_pixel(10, 10, blue_pixel),
         }
@@ -266,7 +267,7 @@ mod strategy_tests {
     }
 
     fn red_image(ctx: &TestContext) -> image::ImageBuffer<Rgba<u8>, Vec<u8>> {
-        RgbaImage::from_pixel(20, 10, ctx.red)
+        RgbaImage::from_pixel(30, 10, ctx.red)
     }
 
     mod independent_strategy {
@@ -315,9 +316,11 @@ mod strategy_tests {
 
             let result = strategy.choose(&red_image);
 
-            assert_eq!(result.len(), 2);
+            assert_eq!(result.len(), 3);
             let result = sort_by_position(&result);
             assert_eq!(result[0].0, result[1].0);
+            assert_eq!(result[0].0, result[2].0);
+            assert_eq!(result[1].0, result[2].0);
         }
     }
 
@@ -367,9 +370,27 @@ mod strategy_tests {
 
             let result = strategy.choose(&red_image);
 
-            assert_eq!(result.len(), 2);
+            assert_eq!(result.len(), 3);
             let result = sort_by_position(&result);
             assert_ne!(result[0].0, result[1].0);
+        }
+
+        #[test]
+        fn test_holistic_strategy_avoids_multiple_duplicate_neighbours() {
+            let ctx = setup();
+
+            let red_image = red_image(&ctx);
+            let analysis = analyse_tiles(&ctx, vec![&ctx.red_tile1, &ctx.red_tile2, &ctx.red_tile3]);
+            let strategy =
+                HolisticStrategy::new(&analysis, &ctx.analysis_options, ctx.cell_size, |_| 10);
+
+            let result = strategy.choose(&red_image);
+
+            assert_eq!(result.len(), 3);
+            let result = sort_by_position(&result);
+            assert_ne!(result[0].0, result[1].0);
+            assert_ne!(result[0].0, result[2].0);
+            assert_ne!(result[1].0, result[2].0);
         }
     }
 }
