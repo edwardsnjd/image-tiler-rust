@@ -28,9 +28,9 @@ use crate::tiling::choose_tile_area;
 
 /// Build and return a mosaic image from the given tiles.
 pub fn mosaic(target_path: &str, lib_path: &str) -> IoResult<RgbaImage> {
-    let analysis_size = 20;
-    let cell_size = 20;
-    let tile_size = 100;
+    let analysis_size = 32;
+    let cell_size = 16;
+    let tile_size = 64;
 
     let penalty_distance = 300;
 
