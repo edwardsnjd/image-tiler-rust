@@ -101,9 +101,10 @@ where
     }
 }
 
-impl<T> TilingStrategy<T> for HolisticStrategy<'_, T>
+impl<T, U> TilingStrategy<T> for HolisticStrategy<'_, T, U>
 where
     T: Eq + std::hash::Hash,
+    U: Fn(i32) -> i32,
 {
     /// Choose the best set of tiles for this target image.
     ///
@@ -117,28 +118,7 @@ where
             .map(|rect| (rect, self.evaluate_tile(target, rect)))
             .collect();
 
-        // Find the best tile for each rectangle
-        for rect in rects.iter() { // TODO: Should order matter?
-            // Find best tile for this rect...
-            let best_tile = *cell_options.get(&rect).unwrap()
-                .iter()
-                .min_by_key(|(_, weight)| *weight)
-                .unwrap()
-                .0;
-
-            // Penalise this tile in all following rectangles
-            let following_rects = rects.iter().skip_while(|&r| r != rect).skip(1);
-            for following_rect in following_rects {
-                let lib_weights = cell_options.get_mut(following_rect).unwrap();
-                let weight = lib_weights.get_mut(best_tile).unwrap();
-
-                let dist = num::abs(following_rect.y as i32 - rect.y as i32)
-                    + num::abs(following_rect.x as i32 - rect.x as i32);
-                let penalty = (self.duplicate_penalty)(dist);
-
-                *weight += penalty;
-            }
-        }
+        adjust_weights(&mut cell_options, &rects, &self.duplicate_penalty);
 
         // Pick the best image for each tile
         cell_options
@@ -185,6 +165,37 @@ where
 fn analyse_cell(img: &RgbaImage, r: &Rectangle, options: &AnalysisOptions) -> ImageInfo {
     let target = imageops::crop_imm(img, r.x, r.y, r.width, r.height);
     analyse(&target.to_image(), options)
+}
+
+fn adjust_weights<T, U>(
+    cell_options: &mut HashMap<&Rectangle, HashMap<&T, i32>>,
+    rects: &[Rectangle],
+    duplicate_penalty: &U,
+) where
+    T: Eq + std::hash::Hash,
+    U: Fn(i32) -> i32,
+{
+    // Find the best tile for each rectangle
+    // TODO: Should order matter?
+    for rect in rects.iter() {
+        // Find best tile for this rect...
+        let hash_map = cell_options.get(&rect).unwrap();
+        let min_by_key = hash_map.iter().min_by_key(|(_, weight)| *weight).unwrap();
+        let best_tile = *min_by_key.0;
+
+        // Penalise this tile in all following rectangles
+        let following_rects = rects.iter().skip_while(|&r| r != rect).skip(1);
+        for following_rect in following_rects {
+            let lib_weights = cell_options.get_mut(following_rect).unwrap();
+            let weight = lib_weights.get_mut(best_tile).unwrap();
+
+            let dist = num::abs(following_rect.y as i32 - rect.y as i32)
+                + num::abs(following_rect.x as i32 - rect.x as i32);
+            let penalty = (duplicate_penalty)(dist);
+
+            *weight += penalty;
+        }
+    }
 }
 
 pub fn penalty_by_distance(analysis_size: u8, dist_threshold: u32) -> impl Fn(i32) -> i32 {
