@@ -138,7 +138,6 @@ fn adjust_weights<T, U>(
     T: Eq + std::hash::Hash,
     U: Fn(i32) -> i32,
 {
-    // Find the best tile for each rectangle
     // TODO: Should order matter?
     for rect in rects.iter() {
         // Find best tile for this rect...
