@@ -90,7 +90,7 @@ where
         }
     }
 
-    /// Choose the best tile for the given rectangle of the target.
+    /// Evaluate all library images against a given rectangle of the target.
     fn evaluate_tile(&self, img: &RgbaImage, r: &Rectangle) -> HashMap<&'a T, i32> {
         let target_info = analyse_cell(img, r, self.options);
         self.analysis
@@ -111,15 +111,16 @@ where
     fn choose(&self, target: &RgbaImage) -> Vec<TileLocation<T, PixelRegion>> {
         let rects = grid(target, &self.cell_size);
 
-        // Use the normal difference to evaluate the cost of each library image for each tile
-        let mut cell_options: HashMap<&Rectangle, HashMap<&T, i32>> = rects
+        // Evaluate the cost of each library image for each tile
+        let mut cell_options = rects
             .iter()
             .map(|rect| (rect, self.evaluate_tile(target, rect)))
             .collect();
 
+        // Adjust the weights according to some strategy
         adjust_weights(&mut cell_options, &rects, &self.duplicate_penalty);
 
-        // Pick the best image for each tile
+        // Pick the image with cheapest weight for each tile
         cell_options
             .iter()
             .map(|(rect, lib_weights)| {
@@ -131,6 +132,37 @@ where
             })
             .map(|(rect, &best)| (best, PixelRegion::from(rect)))
             .collect()
+    }
+}
+
+fn adjust_weights<T, U>(
+    cell_options: &mut HashMap<&Rectangle, HashMap<&T, i32>>,
+    rects: &[Rectangle],
+    duplicate_penalty: &U,
+) where
+    T: Eq + std::hash::Hash,
+    U: Fn(i32) -> i32,
+{
+    // Find the best tile for each rectangle
+    // TODO: Should order matter?
+    for rect in rects.iter() {
+        // Find best tile for this rect...
+        let hash_map = cell_options.get(&rect).unwrap();
+        let min_by_key = hash_map.iter().min_by_key(|(_, weight)| *weight).unwrap();
+        let best_tile = *min_by_key.0;
+
+        // Penalise this tile in all following rectangles
+        let following_rects = rects.iter().skip_while(|&r| r != rect).skip(1);
+        for following_rect in following_rects {
+            let lib_weights = cell_options.get_mut(following_rect).unwrap();
+            let weight = lib_weights.get_mut(best_tile).unwrap();
+
+            let dist = num::abs(following_rect.y as i32 - rect.y as i32)
+                + num::abs(following_rect.x as i32 - rect.x as i32);
+            let penalty = (duplicate_penalty)(dist);
+
+            *weight += penalty;
+        }
     }
 }
 
@@ -164,37 +196,6 @@ where
 fn analyse_cell(img: &RgbaImage, r: &Rectangle, options: &AnalysisOptions) -> ImageInfo {
     let target = imageops::crop_imm(img, r.x, r.y, r.width, r.height);
     analyse(&target.to_image(), options)
-}
-
-fn adjust_weights<T, U>(
-    cell_options: &mut HashMap<&Rectangle, HashMap<&T, i32>>,
-    rects: &[Rectangle],
-    duplicate_penalty: &U,
-) where
-    T: Eq + std::hash::Hash,
-    U: Fn(i32) -> i32,
-{
-    // Find the best tile for each rectangle
-    // TODO: Should order matter?
-    for rect in rects.iter() {
-        // Find best tile for this rect...
-        let hash_map = cell_options.get(&rect).unwrap();
-        let min_by_key = hash_map.iter().min_by_key(|(_, weight)| *weight).unwrap();
-        let best_tile = *min_by_key.0;
-
-        // Penalise this tile in all following rectangles
-        let following_rects = rects.iter().skip_while(|&r| r != rect).skip(1);
-        for following_rect in following_rects {
-            let lib_weights = cell_options.get_mut(following_rect).unwrap();
-            let weight = lib_weights.get_mut(best_tile).unwrap();
-
-            let dist = num::abs(following_rect.y as i32 - rect.y as i32)
-                + num::abs(following_rect.x as i32 - rect.x as i32);
-            let penalty = (duplicate_penalty)(dist);
-
-            *weight += penalty;
-        }
-    }
 }
 
 pub fn penalty_by_distance(analysis_size: u8, dist_threshold: u32) -> impl Fn(i32) -> i32 {
@@ -267,7 +268,7 @@ mod strategy_tests {
     ) -> Vec<&'a (&'a T, PixelRegion)> {
         result
             .iter()
-            .sorted_by(|a, b| Ord::cmp(&a.1, &b.1))
+            .sorted_by_key(|a| &a.1)
             .collect()
     }
 
