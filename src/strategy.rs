@@ -160,6 +160,13 @@ fn adjust_weights<T, U>(
     }
 }
 
+fn lowest_weight_item<'a, T, U>(item_weights: U) -> &'a T
+where
+    U: Iterator<Item = (&'a T, &'a i32)>,
+{
+    item_weights.min_by_key(|(_, weight)| *weight).unwrap().0
+}
+
 // Utilities
 
 /// Calculate the difference between the target region and a tile.
@@ -201,13 +208,6 @@ pub fn penalty_by_distance(analysis_size: u8, dist_threshold: u32) -> impl Fn(i3
         let penalty = (max_penalty / dist_threshold) * (dist_threshold - dist);
         max(0, penalty)
     }
-}
-
-fn lowest_weight_item<'a, T, U>(item_weights: U) -> &'a T
-where
-    U: Iterator<Item = (&'a T, &'a i32)>,
-{
-    item_weights.min_by_key(|(_, weight)| *weight).unwrap().0
 }
 
 // Tests
