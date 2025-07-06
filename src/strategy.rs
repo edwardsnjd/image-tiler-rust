@@ -212,6 +212,50 @@ pub fn penalty_by_distance(analysis_size: u8, dist_threshold: u32) -> impl Fn(i3
 // Tests
 
 #[cfg(test)]
+mod adjustment_tests {
+    use super::*;
+
+    #[test]
+    fn test_adjust_weights_penalises_duplicates() {
+        let rects = vec![
+            Rectangle::new(0, 0, 10, 10),
+            Rectangle::new(10, 0, 10, 10),
+        ];
+        let lib_images = vec![
+            String::from("Image 1"),
+        ];
+        let mut cell_options = setup_cell_options(&rects, &lib_images);
+
+        let penalty: fn(i32) -> i32 = |_| 42;
+
+        adjust_weights(&mut cell_options, &rects[..], &penalty);
+
+        // Lib1 is favourite for rect 1 so should be penalised for rect 2
+        let lib_1 = &lib_images[0];
+        assert_eq!(cell_options[&rects[0]][lib_1], 0);
+        assert_eq!(cell_options[&rects[1]][lib_1], 142);
+    }
+
+    fn setup_cell_options<'a>(
+        rects: &'a [Rectangle],
+        lib_images: &'a [String],
+    ) -> HashMap<&'a Rectangle, HashMap<&'a String, i32>> {
+        let mut map = HashMap::new();
+        map.insert(&rects[0], {
+            let mut lib_opts = HashMap::new();
+            lib_opts.insert(&lib_images[0], 0);
+            lib_opts
+        });
+        map.insert(&rects[1], {
+            let mut lib_opts = HashMap::new();
+            lib_opts.insert(&lib_images[0], 100);
+            lib_opts
+        });
+        map
+    }
+}
+
+#[cfg(test)]
 mod strategy_tests {
     use super::*;
     use image::{Rgba, RgbaImage};
