@@ -19,20 +19,6 @@ pub struct IndependentStrategy<'a, T> {
     cell_size: Dimensions,
 }
 
-impl<T> TilingStrategy<T> for IndependentStrategy<'_, T> {
-    /// Choose the best set of tiles for this target image.
-    ///
-    /// This picks the best tile independent of all other tiles.
-    fn choose(&self, target: &RgbaImage) -> Vec<TileLocation<T, PixelRegion>> {
-        // This implementation assumes we can select the correct tile for
-        // each cell independently.
-        grid(target, &self.cell_size)
-            .iter()
-            .map(|t| (self.select_tile(target, t), PixelRegion::from(t)))
-            .collect()
-    }
-}
-
 impl<T> IndependentStrategy<'_, T> {
     #[allow(dead_code)]
     pub fn new<'a>(
@@ -55,6 +41,19 @@ impl<T> IndependentStrategy<'_, T> {
             .min_by_key(|(_, tile)| tile_difference_weight(&target_info, tile))
             .unwrap()
             .0
+    }
+}
+
+impl<T> TilingStrategy<T> for IndependentStrategy<'_, T> {
+    /// Choose the best set of tiles for this target image.
+    ///
+    /// This picks the best tile independent of all other tiles.
+    fn choose(&self, target: &RgbaImage) -> Vec<TileLocation<T, PixelRegion>> {
+        let rects = grid(target, &self.cell_size);
+        rects
+            .iter()
+            .map(|t| (self.select_tile(target, t), PixelRegion::from(t)))
+            .collect()
     }
 }
 
