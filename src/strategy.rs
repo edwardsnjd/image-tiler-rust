@@ -123,13 +123,7 @@ where
         // Pick the image with cheapest weight for each tile
         cell_options
             .iter()
-            .map(|(rect, lib_weights)| {
-                let (best, _) = lib_weights
-                    .iter()
-                    .min_by_key(|(_, weight)| *weight)
-                    .unwrap();
-                (rect, best)
-            })
+            .map(|(rect, lib_weights)| (rect, lowest_weight_item(lib_weights.iter())))
             .map(|(rect, &best)| (best, PixelRegion::from(rect)))
             .collect()
     }
@@ -148,8 +142,7 @@ fn adjust_weights<T, U>(
     for rect in rects.iter() {
         // Find best tile for this rect...
         let hash_map = cell_options.get(&rect).unwrap();
-        let min_by_key = hash_map.iter().min_by_key(|(_, weight)| *weight).unwrap();
-        let best_tile = *min_by_key.0;
+        let best_tile = *lowest_weight_item(hash_map.iter());
 
         // Penalise this tile in all following rectangles
         let following_rects = rects.iter().skip_while(|&r| r != rect).skip(1);
@@ -207,6 +200,13 @@ pub fn penalty_by_distance(analysis_size: u8, dist_threshold: u32) -> impl Fn(i3
         let penalty = (max_penalty / dist_threshold) * (dist_threshold - dist);
         max(0, penalty)
     }
+}
+
+fn lowest_weight_item<'a, T, U>(item_weights: U) -> &'a T
+where
+    U: Iterator<Item = (&'a T, &'a i32)>,
+{
+    item_weights.min_by_key(|(_, weight)| *weight).unwrap().0
 }
 
 // Tests
