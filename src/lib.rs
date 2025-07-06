@@ -32,6 +32,8 @@ pub fn mosaic(target_path: &str, lib_path: &str) -> IoResult<RgbaImage> {
     let cell_size = 20;
     let tile_size = 100;
 
+    let penalty_distance = 300;
+
     let target = load_image(Path::new(target_path)).unwrap();
     let lib_paths = find_paths(lib_path)?;
 
@@ -42,7 +44,7 @@ pub fn mosaic(target_path: &str, lib_path: &str) -> IoResult<RgbaImage> {
         &lib_info,
         &analysis_options,
         (cell_size, cell_size),
-        penalty_by_distance,
+        penalty_by_distance(analysis_size, penalty_distance),
     );
     let tiles = strategy.choose(&target);
 

@@ -60,26 +60,28 @@ impl<T> IndependentStrategy<'_, T> {
 
 // Holistic tile selection
 
-pub struct HolisticStrategy<'a, T>
+pub struct HolisticStrategy<'a, T, U>
 where
     T: Eq + std::hash::Hash,
+    U: Fn(i32) -> i32,
 {
     options: &'a AnalysisOptions,
     analysis: &'a HashMap<&'a T, ImageInfo>,
     cell_size: Dimensions,
-    duplicate_penalty: fn(i32) -> i32,
+    duplicate_penalty: U,
 }
 
 #[allow(dead_code)]
-impl<'a, T> HolisticStrategy<'a, T>
+impl<'a, T, U> HolisticStrategy<'a, T, U>
 where
     T: Eq + std::hash::Hash,
+    U: Fn(i32) -> i32,
 {
     pub fn new(
         analysis: &'a HashMap<&'a T, ImageInfo>,
         options: &'a AnalysisOptions,
         cell_size: Dimensions,
-        duplicate_penalty: fn(i32) -> i32,
+        duplicate_penalty: U,
     ) -> Self {
         Self {
             options,
@@ -185,11 +187,15 @@ fn analyse_cell(img: &RgbaImage, r: &Rectangle, options: &AnalysisOptions) -> Im
     analyse(&target.to_image(), options)
 }
 
-pub fn penalty_by_distance(dist: i32) -> i32 {
-    let max_penalty = 255 * 255 * 3 * 20 * 20 / 100; // 78_030_000 // 34_214_534
-    let dist_threshold = 300;
-    let penalty = (max_penalty / dist_threshold) * (dist_threshold - dist);
-    max(0, penalty)
+pub fn penalty_by_distance(analysis_size: u8, dist_threshold: u32) -> impl Fn(i32) -> i32 {
+    let analysis_size = analysis_size as i32;
+    let dist_threshold = dist_threshold as i32;
+    let max_penalty = 255 * 255 * 3 * analysis_size * analysis_size / 20;
+
+    move |dist: i32| {
+        let penalty = (max_penalty / dist_threshold) * (dist_threshold - dist);
+        max(0, penalty)
+    }
 }
 
 // Tests
