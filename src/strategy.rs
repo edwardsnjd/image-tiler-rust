@@ -107,7 +107,7 @@ where
 {
     /// Choose the best set of tiles for this target image.
     ///
-    /// This aims to avoid duplicates by penalising duplicates.
+    /// This aims to avoid duplicates.
     fn choose(&self, target: &RgbaImage) -> Vec<TileLocation<T, PixelRegion>> {
         let rects = grid(target, &self.cell_size);
 
@@ -129,6 +129,7 @@ where
     }
 }
 
+/// Increase the cost of neighouring duplicates.
 fn adjust_weights<T, U>(
     cell_options: &mut HashMap<&Rectangle, HashMap<&T, i32>>,
     rects: &[Rectangle],
