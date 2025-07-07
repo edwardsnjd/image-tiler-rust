@@ -217,11 +217,11 @@ mod adjustment_tests {
 
     #[test]
     fn test_adjust_weights_penalises_duplicates() {
-        let (rects, images, costs) = build_data(vec![
+        let (rects, images, costs) = build_owned_data(vec![
             ((0, 0, 10, 10), vec![0]),
             ((10, 0, 10, 10), vec![100]),
         ]);
-        let mut cell_options = build_options(&rects, &images, costs);
+        let mut cell_options = build_reference_data(&rects, &images, costs);
         let penalty: fn(i32) -> i32 = |_| 42;
 
         adjust_weights(&mut cell_options, &rects, &penalty);
@@ -232,7 +232,7 @@ mod adjustment_tests {
         assert_eq!(cell_options[&rects[1]][img1], 142);
     }
 
-    fn build_data(
+    fn build_owned_data(
         data: Vec<((u32, u32, u32, u32), Vec<i32>)>,
     ) -> (Vec<Rectangle>, Vec<String>, Vec<Vec<i32>>) {
         let rects = data
@@ -241,11 +241,11 @@ mod adjustment_tests {
             .collect();
         let total_images = data[0].1.len();
         let images = (1..=total_images).map(|i| format!("Image {}", i)).collect();
-        let cell_options = data.into_iter().map(|(_, items)| items).collect();
-        (rects, images, cell_options)
+        let costs = data.into_iter().map(|(_, items)| items).collect();
+        (rects, images, costs)
     }
 
-    fn build_options<'a>(
+    fn build_reference_data<'a>(
         rects: &'a [Rectangle],
         images: &'a [String],
         costs: Vec<Vec<i32>>,
