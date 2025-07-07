@@ -217,40 +217,47 @@ mod adjustment_tests {
 
     #[test]
     fn test_adjust_weights_penalises_duplicates() {
-        let rects = vec![
-            Rectangle::new(0, 0, 10, 10),
-            Rectangle::new(10, 0, 10, 10),
-        ];
-        let lib_images = vec![
-            String::from("Image 1"),
-        ];
-        let mut cell_options = setup_cell_options(&rects, &lib_images);
-
+        let (rects, images, costs) = build_data(vec![
+            ((0, 0, 10, 10), vec![0]),
+            ((10, 0, 10, 10), vec![100]),
+        ]);
+        let mut cell_options = build_options(&rects, &images, costs);
         let penalty: fn(i32) -> i32 = |_| 42;
 
-        adjust_weights(&mut cell_options, &rects[..], &penalty);
+        adjust_weights(&mut cell_options, &rects, &penalty);
 
         // Lib1 is favourite for rect 1 so should be penalised for rect 2
-        let lib_1 = &lib_images[0];
-        assert_eq!(cell_options[&rects[0]][lib_1], 0);
-        assert_eq!(cell_options[&rects[1]][lib_1], 142);
+        let img1 = &images[0];
+        assert_eq!(cell_options[&rects[0]][img1], 0);
+        assert_eq!(cell_options[&rects[1]][img1], 142);
     }
 
-    fn setup_cell_options<'a>(
+    fn build_data(
+        data: Vec<((u32, u32, u32, u32), Vec<i32>)>,
+    ) -> (Vec<Rectangle>, Vec<String>, Vec<Vec<i32>>) {
+        let rects = data
+            .iter()
+            .map(|((x, y, w, h), _)| Rectangle::new(*x, *y, *w, *h))
+            .collect();
+        let total_images = data[0].1.len();
+        let images = (1..=total_images).map(|i| format!("Image {}", i)).collect();
+        let cell_options = data.into_iter().map(|(_, items)| items).collect();
+        (rects, images, cell_options)
+    }
+
+    fn build_options<'a>(
         rects: &'a [Rectangle],
         lib_images: &'a [String],
+        costs: Vec<Vec<i32>>,
     ) -> HashMap<&'a Rectangle, HashMap<&'a String, i32>> {
         let mut map = HashMap::new();
-        map.insert(&rects[0], {
-            let mut lib_opts = HashMap::new();
-            lib_opts.insert(&lib_images[0], 0);
-            lib_opts
-        });
-        map.insert(&rects[1], {
-            let mut lib_opts = HashMap::new();
-            lib_opts.insert(&lib_images[0], 100);
-            lib_opts
-        });
+        for (rect, rect_costs) in rects.iter().zip(costs) {
+            let mut rect_options = HashMap::new();
+            for (lib_image, cost) in lib_images.iter().zip(rect_costs) {
+                rect_options.insert(lib_image, cost);
+            }
+            map.insert(rect, rect_options);
+        }
         map
     }
 }
