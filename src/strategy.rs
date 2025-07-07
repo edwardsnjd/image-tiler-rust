@@ -310,10 +310,7 @@ mod strategy_tests {
     fn sort_by_position<'a, T>(
         result: &'a Vec<(&'a T, PixelRegion)>,
     ) -> Vec<&'a (&'a T, PixelRegion)> {
-        result
-            .iter()
-            .sorted_by_key(|a| &a.1)
-            .collect()
+        result.iter().sorted_by_key(|a| &a.1).collect()
     }
 
     fn blue_image(ctx: &TestContext) -> image::ImageBuffer<Rgba<u8>, Vec<u8>> {
@@ -441,7 +438,8 @@ mod strategy_tests {
             let ctx = setup();
 
             let red_image = red_image(&ctx);
-            let analysis = analyse_tiles(&ctx, vec![&ctx.red_tile1, &ctx.red_tile2, &ctx.red_tile3]);
+            let analysis =
+                analyse_tiles(&ctx, vec![&ctx.red_tile1, &ctx.red_tile2, &ctx.red_tile3]);
             let strategy =
                 HolisticStrategy::new(&analysis, &ctx.analysis_options, ctx.cell_size, |_| 10);
 
