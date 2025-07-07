@@ -247,16 +247,16 @@ mod adjustment_tests {
 
     fn build_options<'a>(
         rects: &'a [Rectangle],
-        lib_images: &'a [String],
+        images: &'a [String],
         costs: Vec<Vec<i32>>,
     ) -> HashMap<&'a Rectangle, HashMap<&'a String, i32>> {
         let mut map = HashMap::new();
         for (rect, rect_costs) in rects.iter().zip(costs) {
-            let mut rect_options = HashMap::new();
-            for (lib_image, cost) in lib_images.iter().zip(rect_costs) {
-                rect_options.insert(lib_image, cost);
+            let mut rect_map = HashMap::new();
+            for (image, image_cost) in images.iter().zip(rect_costs) {
+                rect_map.insert(image, image_cost);
             }
-            map.insert(rect, rect_options);
+            map.insert(rect, rect_map);
         }
         map
     }
